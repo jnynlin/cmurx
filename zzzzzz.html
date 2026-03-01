@@ -791,7 +791,7 @@ createApp({
         const refreshId = () => form.sessionId = generateSessionId();
         const copySessionId = () => navigator.clipboard.writeText(form.sessionId).then(()=>addToast("教室代碼已複製", "success"));
         const copyLink = () => navigator.clipboard.writeText(`${window.location.origin}/index.html?id=${form.sessionId}`).then(()=>addToast("連結已複製", "success"));
-        const qrCodeUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/index.html?id=' + form.sessionId)}`);
+        const qrCodeUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/cmurx/index.html?id=' + form.sessionId)}`);
         const getBeaconClass = s => { const z = CONFIG.ZODIAC.find(x => x.label === s.profile?.Zodiac); return z ? `elm-${z.element}` : ''; };
         const undoLastImport = async () => {
             const cache = localStorage.getItem(`UNDO_${form.sessionId}`);
@@ -816,4 +816,5 @@ createApp({
 }).mount('#app');
 </script>
 </body>
+
 </html>
