@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Student Portal | v5.6 Optimized</title>
+    <title>Student Portal | v5.7 Rigorous Security</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3.4.19/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,7 +14,7 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
                     screens: { 'xs': '400px' },
-                    animation: { 'pulse-slow': 'pulse 3s infinite', 'fade-in': 'fadeIn 0.5s ease-out' },
+                    animation: { 'pulse-slow': 'pulse 3s infinite', 'fade-in': 'fadeIn 0.4s ease-out' },
                     keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
                 }
             }
@@ -40,6 +40,8 @@
         .beacon-border { border-color: var(--accent) !important; box-shadow: 0 0 15px var(--bg-glow); }
         .beacon-text { color: var(--accent) !important; }
         .beacon-bg { background-color: var(--bg-glow) !important; }
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(30px); }
     </style>
 </head>
 <body class="overflow-hidden select-none">
@@ -55,12 +57,12 @@
     </div>
 
     <div v-if="!isOnline" class="fixed inset-0 z-[99999] offline-mask flex flex-col items-center justify-center text-white transition-opacity duration-500">
-        <div class="bg-slate-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-slate-600 max-w-xs w-full text-center">
+        <div class="bg-slate-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-slate-600 max-w-xs w-full text-center font-mono">
             <i class="fa-solid fa-wifi text-6xl text-red-500 mb-6 animate-pulse"></i>
             <h3 class="text-2xl font-bold mb-2">訊號同步中</h3>
-            <p class="text-sm text-slate-400 font-mono mb-8 leading-relaxed">正在建立加密連線...<br>若長時間卡住請重新整理</p>
+            <p class="text-xs text-slate-400 mb-8">正在嘗試連線至雲端伺服器...</p>
             <button onclick="location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-rotate-right"></i> 重新載入
+                <i class="fa-solid fa-rotate-right"></i> 重新整理介面
             </button>
         </div>
     </div>
@@ -69,15 +71,15 @@
         <div class="w-full max-w-sm glass-panel rounded-3xl p-8 shadow-2xl relative border-t border-slate-600">
             <div class="text-center">
                 <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl text-white shadow-lg"><i class="fa-solid fa-graduation-cap"></i></div>
-                <h1 class="text-3xl font-extrabold text-white mb-2 tracking-tight">Student Portal</h1>
+                <h1 class="text-3xl font-extrabold text-white mb-2">Student</h1>
                 <div class="space-y-4 mt-8">
                     <div>
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Session ID</label>
-                        <input v-model="form.sessionId" class="w-full p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-center text-xl text-white outline-none focus:border-blue-500 uppercase placeholder:text-slate-700" placeholder="教室代碼">
+                        <input v-model="form.sessionId" class="w-full p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-center text-xl text-white outline-none focus:border-blue-500 uppercase" placeholder="教室代碼">
                     </div>
-                    <button @click="enterRoom" :disabled="loading" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition shadow-lg disabled:opacity-50 flex justify-center items-center gap-2">
-                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i> 連線中...</span>
-                        <span v-else>進入教室 <i class="fa-solid fa-arrow-right"></i></span>
+                    <button @click="enterRoom" :disabled="loading" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition shadow-lg shadow-blue-900/40 disabled:opacity-50 flex justify-center items-center gap-2">
+                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                        <span>進入教室 <i class="fa-solid fa-arrow-right ml-1"></i></span>
                     </button>
                 </div>
             </div>
@@ -88,24 +90,24 @@
         <div v-if="globalState.loginStatus === 'locked'" class="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6 border border-slate-700"><i class="fa-solid fa-lock text-3xl text-red-500"></i></div>
             <h2 class="text-xl font-bold text-white mb-2">名單已鎖定</h2>
-            <p class="text-slate-400">請舉手請老師協助解鎖。</p>
-            <button @click="attemptAutoLogin" class="mt-8 text-blue-400 hover:text-white underline text-sm">重新嘗試</button>
+            <p class="text-slate-400">登入功能目前關閉，請洽老師。</p>
+            <button @click="attemptAutoLogin" class="mt-8 text-blue-400 underline text-sm">重新嘗試</button>
         </div>
         <div v-else class="flex-1 flex flex-col items-center justify-center p-6">
             <div class="w-full max-w-sm glass-panel p-8 rounded-3xl shadow-2xl relative border-t border-slate-600">
-                <button @click="viewState='entry'" class="absolute top-4 left-4 text-slate-500 hover:text-white p-2"><i class="fa-solid fa-arrow-left"></i></button>
+                <button @click="viewState='entry'" class="absolute top-4 left-4 text-slate-500 p-2"><i class="fa-solid fa-arrow-left"></i></button>
                 <div class="text-center mb-6">
-                    <h2 class="text-2xl font-bold text-white">身份驗證</h2>
-                    <p class="text-sm text-slate-400 mt-1">智慧搜尋：不需輸入大寫 S</p>
+                    <h2 class="text-2xl font-bold text-white">身份辨識</h2>
+                    <p class="text-sm text-slate-400 mt-1">免輸入 S，支援學號或姓名</p>
                 </div>
                 <div class="space-y-4">
                     <div class="relative">
                         <i class="fa-solid fa-id-card absolute left-4 top-4 text-slate-500"></i>
-                        <input v-model="searchQuery" @keyup.enter="handleSearch" class="w-full pl-12 p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-lg text-white outline-none focus:border-blue-500 uppercase" placeholder="輸入學號或姓名">
+                        <input v-model="searchQuery" @keyup.enter="handleSearch" class="w-full pl-12 p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-lg text-white outline-none focus:border-blue-500 uppercase" placeholder="輸入學號/姓名">
                     </div>
-                    <button @click="handleSearch" :disabled="loading || !searchQuery" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition flex justify-center items-center gap-2 disabled:opacity-50">
-                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i> 搜尋中...</span>
-                        <span v-else>確認身分 <i class="fa-solid fa-arrow-right"></i></span>
+                    <button @click="handleSearch" :disabled="loading || !searchQuery" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition flex justify-center items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-900/20">
+                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                        <span>下一個步驟 <i class="fa-solid fa-arrow-right ml-1"></i></span>
                     </button>
                 </div>
             </div>
@@ -114,18 +116,18 @@
 
     <div v-if="claimingUser" class="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6">
         <div class="w-full max-w-sm glass-panel rounded-3xl p-6 relative animate-fade-in" :class="getBeaconClass(claimingUser.profile?.Zodiac)">
-            <button @click="claimingUser=null" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <button @click="claimingUser=null" class="absolute top-4 right-4 text-slate-400 p-2"><i class="fa-solid fa-xmark text-xl"></i></button>
             <div class="text-center mb-8 mt-2">
-                <div class="w-20 h-20 mx-auto rounded-full beacon-bg flex items-center justify-center text-4xl beacon-text mb-4 border-2 beacon-border animate-pulse-slow">{{ isGroupRevealed ? getZodiacIcon(claimingUser.profile?.Zodiac) : '❓' }}</div>
+                <div class="w-20 h-20 mx-auto rounded-full beacon-bg flex items-center justify-center text-4xl beacon-text mb-4 border-2 beacon-border animate-pulse-slow">{{ isGroupRevealed ? getZodiacIcon(claimingUser.profile?.Zodiac) : '👤' }}</div>
                 <h3 class="text-2xl font-bold text-white">{{ claimingUser.profile?.Name }}</h3>
                 <p class="text-sm text-slate-400 font-mono mt-1">{{ claimingUser.profile?.StudentId }}<span v-if="isGroupRevealed"> | {{ claimingUser.profile?.Zodiac }}</span></p>
             </div>
             <div class="space-y-4">
                 <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase flex justify-between mb-2"><span>PIN Code</span><i class="fa-solid fa-lock"></i></label>
-                    <input v-model="form.pin" type="tel" maxlength="4" class="w-full bg-transparent text-center text-3xl font-mono font-bold tracking-[0.5em] text-white outline-none placeholder:text-slate-700" placeholder="••••">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase flex justify-between mb-2"><span>設置 4 位 PIN 碼</span><i class="fa-solid fa-shield-halved"></i></label>
+                    <input v-model="form.pin" type="tel" maxlength="4" class="w-full bg-transparent text-center text-3xl font-mono font-bold tracking-[0.5em] text-white outline-none placeholder:text-slate-800" placeholder="••••" pattern="\d*">
                 </div>
-                <button @click="executeAtomicClaim" :disabled="loading" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-lg transition active:scale-95 text-base">登入系統</button>
+                <button @click="executeAtomicClaim" :disabled="loading" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-lg transition active:scale-95 text-base">確認身份並登入</button>
             </div>
         </div>
     </div>
@@ -133,23 +135,21 @@
     <div v-if="viewState === 'dashboard'" class="flex flex-col h-full w-full bg-slate-900 transition-colors duration-1000" :class="getBeaconClass(myProfile.zodiac?.label)">
         
         <nav class="glass-panel border-b border-white/10 h-16 sm:h-20 flex-none z-50">
-            <div class="container mx-auto px-4 h-full flex justify-between items-center max-w-3xl">
+            <div class="container mx-auto px-4 h-full flex justify-between items-center max-w-4xl">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-lg border beacon-border beacon-bg beacon-text">
                         {{ getCurrentIcon() }}
                     </div>
-                    <div class="max-w-[100px] xs:max-w-none">
+                    <div class="max-w-[120px] xs:max-w-none">
                         <div class="font-bold text-white text-xs sm:text-sm truncate">{{ myProfile.name }}</div>
-                        <div class="flex items-center gap-2">
-                            <div class="text-[9px] sm:text-[10px] beacon-text font-bold font-mono uppercase">{{ isGroupRevealed ? myProfile.zodiac?.label : 'Secret Phase' }}</div>
-                        </div>
+                        <div class="text-[9px] sm:text-[10px] beacon-text font-bold font-mono uppercase tracking-wider">{{ isGroupRevealed ? myProfile.zodiac?.label : 'Wait Phase' }}</div>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2 sm:gap-4">
-                    <div class="flex items-center px-2 py-1.5 sm:px-4 sm:py-2 border border-slate-700 rounded-lg bg-slate-950/50 text-slate-400 font-mono tracking-wider transition-all">
-                        <span class="hidden md:inline text-[10px] opacity-40 font-bold mr-2">ID:</span>
-                        <span class="text-[9px] sm:text-[11px] font-bold text-slate-300">{{ form.sessionId }}</span>
+                    <div class="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 border border-slate-700 rounded-lg bg-slate-950/50 text-slate-400 font-mono tracking-wider">
+                        <span class="hidden md:inline text-[10px] font-bold mr-2 opacity-50 uppercase">ID:</span>
+                        <span class="text-[9px] sm:text-[11px] font-bold text-slate-200">{{ form.sessionId }}</span>
                     </div>
                     <button @click="logout" class="text-slate-500 hover:text-red-400 transition-colors p-2"><i class="fa-solid fa-power-off sm:text-lg"></i></button>
                 </div>
@@ -167,26 +167,26 @@
                             <h3 class="font-bold text-white text-sm">暖身校準 (Warm-up)</h3>
                             <div v-if="!myTasks.calibration.done" class="space-y-4 mt-3 p-4 bg-slate-900/80 rounded-xl border border-slate-700">
                                 <div class="space-y-2">
-                                    <div class="flex justify-between text-xs font-bold text-slate-400 uppercase"><span>今日熟悉度評估</span><span class="beacon-text text-base">{{ tempCalibration.confidence }}/5</span></div>
+                                    <div class="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-tighter"><span>今日熟悉度</span><span class="beacon-text text-base font-mono">{{ tempCalibration.confidence }}/5</span></div>
                                     <input type="range" v-model.number="tempCalibration.confidence" min="1" max="5" class="w-full accent-blue-500">
                                 </div>
-                                <button @click="submitCalibration" class="w-full bg-white text-slate-900 py-3 rounded-lg text-xs font-bold transition active:scale-95">提交並解鎖任務</button>
+                                <button @click="submitCalibration" class="w-full bg-white text-slate-900 py-3 rounded-lg text-xs font-bold transition active:scale-95">提交並解鎖</button>
                             </div>
-                            <div v-else class="text-xs font-bold beacon-text uppercase flex items-center gap-1 mt-2 font-mono"><i class="fa-solid fa-check-circle"></i> Ready (Level {{ myTasks.calibration.confidence }})</div>
+                            <div v-else class="text-xs font-bold beacon-text uppercase flex items-center gap-1 mt-2 font-mono"><i class="fa-solid fa-check-circle"></i> Ready Level {{ myTasks.calibration.confidence }}</div>
                         </div>
                     </div>
                 </div>
 
                 <div v-if="globalState.config?.enableGroupA">
-                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-2 pl-1 tracking-widest opacity-60">Phase A: Core Learning</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-2 pl-1 tracking-widest opacity-60 font-mono">Phase A: Inputs</div>
                     <div v-for="key in ['notebook', 'slido', 'forms']" :key="key" class="task-card p-5 rounded-2xl relative overflow-hidden mb-4 bg-slate-800/30" :class="getTaskClass(key)">
                         <div class="flex gap-4 items-start relative z-10">
-                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-transparent transition-all" :class="myTasks[key].done ? 'beacon-bg beacon-text shadow-lg scale-110' : (myTasks[key].started ? 'bg-blue-900/30 text-blue-400' : 'bg-slate-800 text-slate-600')"><i :class="myTasks[key].done ? 'fa-solid fa-check' : mainTasks[key].icon"></i></div>
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-transparent transition-all duration-500" :class="myTasks[key].done ? 'beacon-bg beacon-text shadow-lg scale-110' : (myTasks[key].started ? 'bg-blue-900/30 text-blue-400' : 'bg-slate-800 text-slate-600')"><i :class="myTasks[key].done ? 'fa-solid fa-check' : mainTasks[key].icon"></i></div>
                             <div class="flex-grow">
                                 <h3 class="font-bold text-slate-100 text-base">{{ mainTasks[key].title }}</h3>
                                 <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">{{ mainTasks[key].desc }}</p>
                                 <div v-if="isUnlocked(key)" class="flex flex-col gap-2 mt-2">
-                                    <button @click="openLink(key)" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition border border-slate-600 text-slate-200 hover:bg-slate-800 active:scale-95"><i class="fa-solid fa-arrow-up-right-from-square"></i> {{ myTasks[key].done ? '再次進入' : '開啟連結' }}</button>
+                                    <button @click="openLink(key)" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-arrow-up-right-from-square"></i> {{ myTasks[key].done ? '再次複習' : '開啟連結' }}</button>
                                     <button v-if="myTasks[key].started && !myTasks[key].done" @click="markDone(key)" class="w-full bg-white text-slate-900 px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow flex justify-center items-center gap-2 active:scale-95"><i class="fa-regular fa-square-check"></i> 標記為完成</button>
                                 </div>
                                 <div v-else class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 text-slate-500 text-[10px] rounded-lg font-bold mt-2 border border-slate-700 tracking-wider">🔒 尚未開放</div>
@@ -196,7 +196,7 @@
                 </div>
 
                 <div v-if="globalState.config?.enableGroupB">
-                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-8 pl-1 tracking-widest border-t border-slate-800 pt-6 opacity-60">Phase B: Creative Project</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-8 pl-1 tracking-widest border-t border-slate-800 pt-6 opacity-60 font-mono">Phase B: Creative Outputs</div>
                     
                     <div v-if="globalState.config?.assignmentType === 'group'" class="task-card p-5 rounded-2xl relative overflow-hidden mb-4 bg-slate-800/30 border-l-4 border-amber-500/50" :class="isUnlocked('assignment') ? '' : 'task-locked'">
                         <div class="flex gap-4 items-center relative z-10">
@@ -216,8 +216,8 @@
                                 <h3 class="font-bold text-slate-100 text-base">{{ assignmentMeta.title }}</h3>
                                 <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">{{ assignmentMeta.desc }}</p>
                                 <div v-if="isUnlocked('assignment')" class="flex flex-col gap-2">
-                                    <button @click="openLink('assignment')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-cloud-arrow-up"></i> 前往繳交區</button>
-                                    <button v-if="myTasks.assignment.started && !myTasks.assignment.done" @click="markDone('assignment')" class="w-full bg-amber-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check-double"></i> 標記為已繳交</button>
+                                    <button @click="openLink('assignment')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-cloud-arrow-up"></i> 前往繳交</button>
+                                    <button v-if="myTasks.assignment.started && !myTasks.assignment.done" @click="markDone('assignment')" class="w-full bg-amber-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check-double"></i> 標記已完成</button>
                                 </div>
                                 <div v-else class="text-[10px] text-slate-500 font-bold border border-slate-700 px-2 py-1 rounded inline-block">🔒 尚未開放繳交</div>
                             </div>
@@ -228,11 +228,11 @@
                          <div class="flex gap-4 items-start relative z-10">
                             <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-all bg-slate-800 text-slate-600" :class="{'beacon-bg beacon-text': myTasks.gallery.done}"><i class="fa-solid fa-images"></i></div>
                             <div class="flex-grow">
-                                <h3 class="font-bold text-slate-100 text-base">Exhibition (作品賞析)</h3>
-                                <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">觀摩其他同學的作品。</p>
+                                <h3 class="font-bold text-slate-100 text-base">Exhibition (賞析展覽)</h3>
+                                <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">進入成果展示區觀摩同儕作品。</p>
                                 <div v-if="isUnlocked('gallery')" class="flex flex-col gap-2">
                                     <button @click="openLink('gallery')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-eye"></i> 進入展覽</button>
-                                    <button v-if="myTasks.gallery.started && !myTasks.gallery.done" @click="markDone('gallery')" class="w-full bg-pink-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check"></i> 我已觀摩完畢</button>
+                                    <button v-if="myTasks.gallery.started && !myTasks.gallery.done" @click="markDone('gallery')" class="w-full bg-pink-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check"></i> 賞析完畢</button>
                                 </div>
                                 <div v-else class="text-[10px] text-slate-500 font-bold border border-slate-700 px-2 py-1 rounded inline-block">🔒 尚未開放展覽</div>
                             </div>
@@ -241,15 +241,15 @@
                 </div>
 
                 <div v-if="canDebrief" class="bg-slate-800/90 p-6 rounded-2xl border border-white/10 mt-2 mb-8 animate-fade-in relative overflow-hidden beacon-border shadow-2xl">
-                    <h3 class="font-bold text-white mb-4 flex items-center gap-2 text-lg"><i class="fa-solid fa-file-signature beacon-text"></i> 學習結算 (Debrief)</h3>
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2 text-lg"><i class="fa-solid fa-file-signature beacon-text"></i> 課程總結 (Debrief)</h3>
                     <div v-if="!myProfile.rating || isEditing" class="space-y-6">
-                        <textarea v-model="tempDebrief.content" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-28 resize-none" placeholder="分享今天的學習重點或分組貢獻..."></textarea>
-                        <button @click="submitDebrief" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-xl flex items-center justify-center gap-2 transition hover:bg-slate-100 active:scale-95"><i class="fa-solid fa-paper-plane"></i> 提交心得並登出</button>
+                        <textarea v-model="tempDebrief.content" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-32 resize-none" placeholder="分享您今日的心得或專案分工貢獻..."></textarea>
+                        <button @click="submitDebrief" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-xl flex items-center justify-center gap-2 transition hover:bg-slate-100 active:scale-95"><i class="fa-solid fa-paper-plane"></i> 送出心得</button>
                     </div>
                     <div v-else class="text-center py-6">
-                        <div class="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30"><i class="fa-solid fa-check"></i></div>
-                        <div class="text-sm font-bold text-white tracking-wide font-mono uppercase">Course Completed!</div>
-                        <div class="text-xs text-slate-500 mt-2">心得已成功存檔於雲端系統。</div>
+                        <div class="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30 font-bold"><i class="fa-solid fa-check"></i></div>
+                        <div class="text-sm font-bold text-white tracking-widest uppercase font-mono">Mission Complete!</div>
+                        <div class="text-xs text-slate-500 mt-2">您的資料已成功寫入雲端紀錄。</div>
                     </div>
                 </div>
             </div>
@@ -278,9 +278,9 @@ const CONFIG = {
         {label:'申猴', icon:'💡', element:'air'}, {label:'酉雞', icon:'⏱', element:'air'}, {label:'戌狗', icon:'🛡', element:'earth'}, {label:'亥豬', icon:'📚', element:'water'}
     ],
     TASKS_META: {
-        notebook: { title: 'Gathering', desc: '教材閱讀與 AI 整理。', icon: 'fa-solid fa-book-sparkles' },
-        slido: { title: 'Briefing', desc: '互動提問與參與投票。', icon: 'fa-solid fa-users-rays' },
-        forms: { title: 'Assessment', desc: '成效檢核。', icon: 'fa-solid fa-clipboard-check' }
+        notebook: { title: 'Gathering', desc: '閱讀教材並整理重點。', icon: 'fa-solid fa-book-sparkles' },
+        slido: { title: 'Briefing', desc: '互動提問與投票參與。', icon: 'fa-solid fa-users-rays' },
+        forms: { title: 'Assessment', desc: '完成今日成效檢核。', icon: 'fa-solid fa-clipboard-check' }
     }
 };
 
@@ -337,15 +337,15 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
             const val = snap.val(); if(!val) return;
             const stored = JSON.parse(localStorage.getItem('zodiac_identity') || '{}');
             if(!val.auth || val.auth.isActive === false || val.auth.token !== stored.token) {
-                addToast("連線已失效或已被強制登出", "error");
+                addToast("連線已失效或已被老師斷開", "error");
                 setTimeout(() => { localStorage.removeItem('zodiac_identity'); location.reload(); }, 2000);
                 return;
             }
             if(val.tasks) Object.assign(myTasks, val.tasks);
-            if(val.feedback) { try { if(val.feedback.startsWith('{')) Object.assign(tempDebrief, JSON.parse(val.feedback)); else tempDebrief.reflection=val.feedback; } catch(e){} }
+            if(val.feedback) { try { if(val.feedback.startsWith('{')) Object.assign(tempDebrief, JSON.parse(val.feedback)); else tempDebrief.content=val.feedback; } catch(e){} }
         });
     };
-    const assignmentMeta = computed(() => { const t = globalState.config?.assignmentType || 'individual'; return t === 'group' ? { title: 'Group Project', icon: 'fa-solid fa-users-viewfinder', desc:'分組討論產出。' } : { title: 'Individual Work', icon: 'fa-solid fa-user-pen', desc:'個人獨立完成。' }; });
+    const assignmentMeta = computed(() => { const t = globalState.config?.assignmentType || 'individual'; return t === 'group' ? { title: 'Group Project', icon: 'fa-solid fa-users-viewfinder', desc:'分組討論與共學產出。' } : { title: 'Individual Work', icon: 'fa-solid fa-user-pen', desc:'個人獨立完成並提交。' }; });
     const submitCalibration = () => {
         const start = myTasks.calibration.startTime || (Date.now() - 5000);
         update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/calibration`), { done: true, confidence: tempCalibration.confidence, endTime: Date.now(), startTime: start, duration: Math.round((Date.now()-start)/1000) }).then(() => playSFX('success'));
@@ -371,9 +371,9 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
         return aR && bR && (globalState.config?.enableGroupA || globalState.config?.enableGroupB);
     });
     const submitDebrief = () => {
-        const p = JSON.stringify({ v: 1, role: tempDebrief.role, content: tempDebrief.content, reflection: tempDebrief.reflection, self_score: tempDebrief.self_score });
+        const p = JSON.stringify({ v: 1, content: tempDebrief.content, self_score: 7 });
         update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`), { rating: 1, feedback: p }); 
-        isEditing.value = false; addToast("已提交", "success");
+        isEditing.value = false; addToast("心得已提交", "success");
     };
     const openLink = async (k) => {
         playSFX('click');
@@ -383,7 +383,7 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
             if (s.exists()) {
                 if(k === 'assignment') update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/assignment`), { started: true, startTime: Date.now() });
                 window.open(s.val(), '_blank');
-            } else addToast("未設定", "error");
+            } else addToast("未設定連結", "error");
             return;
         }
         let url = globalState.links?.[k]; if (!url) return addToast("未設定連結", "error");
@@ -409,11 +409,19 @@ function useIdentity(sessionId, addToast, changeView, playSFX) {
                     return sid === q || sid === qWithS || name === q || u.toUpperCase() === q || u.toUpperCase() === qWithS;
                 });
                 if (found) { playSFX('click'); claimingUser.value = { uid: found[0], ...found[1] }; }
-                else addToast("找不到符合資料", "error");
+                else addToast("找不到資料", "error");
             }
         } catch (e) { addToast("搜尋失敗", "error"); } finally { loading.value = false; }
     };
+
+    // 💡 嚴密鎖定邏輯：強制檢查 4 位數字
     const executeClaim = async (pin) => {
+        const pinRegex = /^\d{4}$/; 
+        if (!pinRegex.test(pin)) {
+            addToast("請設置 4 位純數字 PIN 碼", "error", "fa-solid fa-keyboard");
+            return false;
+        }
+        
         loading.value = true;
         try {
             const uid = claimingUser.value.uid;
@@ -428,6 +436,7 @@ function useIdentity(sessionId, addToast, changeView, playSFX) {
             return true;
         } catch(e) { return false; } finally { loading.value = false; }
     };
+
     const attemptAutoLogin = async () => {
         const stored = localStorage.getItem('zodiac_identity');
         if(!stored) { changeView('roster'); return false; }
@@ -463,7 +472,8 @@ createApp({
         const { isOnline, globalState, initConnection, startHeartbeat, initRoomSync } = useRoom(sRef, uRef);
         const { loading, claimingUser, myProfile: idP, executeClaim, attemptAutoLogin, searchStudent, logout } = useIdentity(sRef, addToast, (v)=>viewState.value=v, playSFX);
         watch(idP, (nP) => { if(nP) Object.assign(myProfile, nP); });
-        const { myTasks, tempCalibration, tempDebrief, initTaskSync, markDone, isUnlocked, isEditing, groupADone, canDebrief, assignmentMeta, submitCalibration, submitDebrief, openLink } = useTasks(sRef, uRef, globalState, myProfile, addToast, playSFX);
+        const { myTasks, tempCalibration, tempDebrief, initTaskSync, markDone, isUnlocked, isEditing, canDebrief, assignmentMeta, submitCalibration, submitDebrief, openLink } = useTasks(sRef, uRef, globalState, myProfile, addToast, playSFX);
+        
         onMounted(() => {
             const pid = new URLSearchParams(window.location.search).get('id'); if(pid) form.sessionId = pid;
             if(form.sessionId) { 
@@ -472,6 +482,7 @@ createApp({
             }
             initConnection();
         });
+
         const enterRoom = async () => {
             form.sessionId = form.sessionId.trim().toUpperCase(); if(!form.sessionId) return addToast("請輸入代碼", "error");
             localStorage.setItem('zodiac_last_session', form.sessionId);
