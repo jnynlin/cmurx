@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Student Portal | v5.7 Rigorous Security</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3.4.19/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    screens: { 'xs': '400px' },
+                    animation: { 'pulse-slow': 'pulse 3s infinite', 'fade-in': 'fadeIn 0.4s ease-out' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; color: #f8fafc; }
+        .h-screen-dvh { height: 100vh; height: 100dvh; }
+        [v-cloak] { display: none !important; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .offline-mask { backdrop-filter: blur(8px); background: rgba(15, 23, 42, 0.95); }
+        .task-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; background: rgba(30, 41, 59, 0.4); }
+        .task-locked { filter: grayscale(1); opacity: 0.5; pointer-events: none; background: rgba(15, 23, 42, 0.3); border: 1px dashed rgba(71, 85, 105, 0.3); }
+        .task-active { background: rgba(30, 41, 59, 0.95); transform: translateY(-2px); border-color: rgba(96, 165, 250, 0.5); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); }
+        .task-done { background: rgba(6, 78, 59, 0.2); border-color: rgba(34, 197, 94, 0.4); opacity: 1; }
+        input[type=range] { -webkit-appearance: none; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: #f8fafc; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .theme-fire { --accent: #ef4444; --bg-glow: rgba(239, 68, 68, 0.15); }
+        .theme-water { --accent: #3b82f6; --bg-glow: rgba(59, 130, 246, 0.15); }
+        .theme-air { --accent: #fbbf24; --bg-glow: rgba(251, 191, 36, 0.15); }
+        .theme-earth { --accent: #22c55e; --bg-glow: rgba(34, 197, 94, 0.15); }
+        .theme-secret { --accent: #94a3b8; --bg-glow: rgba(148, 163, 184, 0.1); } 
+        .beacon-border { border-color: var(--accent) !important; box-shadow: 0 0 15px var(--bg-glow); }
+        .beacon-text { color: var(--accent) !important; }
+        .beacon-bg { background-color: var(--bg-glow) !important; }
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(30px); }
+    </style>
+</head>
+<body class="overflow-hidden select-none">
+
+<div id="app" v-cloak class="h-screen-dvh flex flex-col relative">
+    <div class="fixed top-8 right-4 z-[99999] flex flex-col gap-2 pointer-events-none">
+        <transition-group name="toast">
+            <div v-for="t in toasts" :key="t.id" class="pointer-events-auto px-4 py-3 rounded-xl shadow-lg border border-slate-700 bg-slate-800 text-white flex items-center gap-3 min-w-[280px] backdrop-blur-md">
+                <i :class="t.icon" :class="t.type==='error'?'text-red-400':(t.type==='success'?'text-emerald-400':'text-blue-400')"></i>
+                <div class="text-sm font-bold">{{ t.msg }}</div>
+            </div>
+        </transition-group>
+    </div>
+
+    <div v-if="!isOnline" class="fixed inset-0 z-[99999] offline-mask flex flex-col items-center justify-center text-white transition-opacity duration-500">
+        <div class="bg-slate-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-slate-600 max-w-xs w-full text-center font-mono">
+            <i class="fa-solid fa-wifi text-6xl text-red-500 mb-6 animate-pulse"></i>
+            <h3 class="text-2xl font-bold mb-2">訊號同步中</h3>
+            <p class="text-xs text-slate-400 mb-8">正在嘗試連線至雲端伺服器...</p>
+            <button onclick="location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> 重新整理介面
+            </button>
+        </div>
+    </div>
+
+    <div v-if="viewState === 'entry'" class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 bg-slate-900">
+        <div class="w-full max-w-sm glass-panel rounded-3xl p-8 shadow-2xl relative border-t border-slate-600">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl text-white shadow-lg"><i class="fa-solid fa-graduation-cap"></i></div>
+                <h1 class="text-3xl font-extrabold text-white mb-2">Student</h1>
+                <div class="space-y-4 mt-8">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Session ID</label>
+                        <input v-model="form.sessionId" class="w-full p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-center text-xl text-white outline-none focus:border-blue-500 uppercase" placeholder="教室代碼">
+                    </div>
+                    <button @click="enterRoom" :disabled="loading" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition shadow-lg shadow-blue-900/40 disabled:opacity-50 flex justify-center items-center gap-2">
+                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                        <span>進入教室 <i class="fa-solid fa-arrow-right ml-1"></i></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="viewState === 'roster'" class="flex flex-col h-full bg-slate-900">
+        <div v-if="globalState.loginStatus === 'locked'" class="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6 border border-slate-700"><i class="fa-solid fa-lock text-3xl text-red-500"></i></div>
+            <h2 class="text-xl font-bold text-white mb-2">名單已鎖定</h2>
+            <p class="text-slate-400">登入功能目前關閉，請洽老師。</p>
+            <button @click="attemptAutoLogin" class="mt-8 text-blue-400 underline text-sm">重新嘗試</button>
+        </div>
+        <div v-else class="flex-1 flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-sm glass-panel p-8 rounded-3xl shadow-2xl relative border-t border-slate-600">
+                <button @click="viewState='entry'" class="absolute top-4 left-4 text-slate-500 p-2"><i class="fa-solid fa-arrow-left"></i></button>
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-white">身份辨識</h2>
+                    <p class="text-sm text-slate-400 mt-1">免輸入 S，支援學號或姓名</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-id-card absolute left-4 top-4 text-slate-500"></i>
+                        <input v-model="searchQuery" @keyup.enter="handleSearch" class="w-full pl-12 p-4 bg-slate-800 border border-slate-600 rounded-xl font-mono font-bold text-lg text-white outline-none focus:border-blue-500 uppercase" placeholder="輸入學號/姓名">
+                    </div>
+                    <button @click="handleSearch" :disabled="loading || !searchQuery" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition flex justify-center items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-900/20">
+                        <span v-if="loading"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                        <span>下一個步驟 <i class="fa-solid fa-arrow-right ml-1"></i></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="claimingUser" class="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6">
+        <div class="w-full max-w-sm glass-panel rounded-3xl p-6 relative animate-fade-in" :class="getBeaconClass(claimingUser.profile?.Zodiac)">
+            <button @click="claimingUser=null" class="absolute top-4 right-4 text-slate-400 p-2"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="text-center mb-8 mt-2">
+                <div class="w-20 h-20 mx-auto rounded-full beacon-bg flex items-center justify-center text-4xl beacon-text mb-4 border-2 beacon-border animate-pulse-slow">{{ isGroupRevealed ? getZodiacIcon(claimingUser.profile?.Zodiac) : '👤' }}</div>
+                <h3 class="text-2xl font-bold text-white">{{ claimingUser.profile?.Name }}</h3>
+                <p class="text-sm text-slate-400 font-mono mt-1">{{ claimingUser.profile?.StudentId }}<span v-if="isGroupRevealed"> | {{ claimingUser.profile?.Zodiac }}</span></p>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase flex justify-between mb-2"><span>設置 4 位 PIN 碼</span><i class="fa-solid fa-shield-halved"></i></label>
+                    <input v-model="form.pin" type="tel" maxlength="4" class="w-full bg-transparent text-center text-3xl font-mono font-bold tracking-[0.5em] text-white outline-none placeholder:text-slate-800" placeholder="••••" pattern="\d*">
+                </div>
+                <button @click="executeAtomicClaim" :disabled="loading" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-lg transition active:scale-95 text-base">確認身份並登入</button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="viewState === 'dashboard'" class="flex flex-col h-full w-full bg-slate-900 transition-colors duration-1000" :class="getBeaconClass(myProfile.zodiac?.label)">
+        
+        <nav class="glass-panel border-b border-white/10 h-16 sm:h-20 flex-none z-50">
+            <div class="container mx-auto px-4 h-full flex justify-between items-center max-w-4xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-lg border beacon-border beacon-bg beacon-text">
+                        {{ getCurrentIcon() }}
+                    </div>
+                    <div class="max-w-[120px] xs:max-w-none">
+                        <div class="font-bold text-white text-xs sm:text-sm truncate">{{ myProfile.name }}</div>
+                        <div class="text-[9px] sm:text-[10px] beacon-text font-bold font-mono uppercase tracking-wider">{{ isGroupRevealed ? myProfile.zodiac?.label : 'Wait Phase' }}</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <div class="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 border border-slate-700 rounded-lg bg-slate-950/50 text-slate-400 font-mono tracking-wider">
+                        <span class="hidden md:inline text-[10px] font-bold mr-2 opacity-50 uppercase">ID:</span>
+                        <span class="text-[9px] sm:text-[11px] font-bold text-slate-200">{{ form.sessionId }}</span>
+                    </div>
+                    <button @click="logout" class="text-slate-500 hover:text-red-400 transition-colors p-2"><i class="fa-solid fa-power-off sm:text-lg"></i></button>
+                </div>
+            </div>
+            <div v-if="globalProgress > 0" class="absolute bottom-0 left-0 w-full h-1 bg-slate-800"><div class="h-full bg-white/50 transition-all duration-1000" :style="`width:${globalProgress}%`"></div></div>
+        </nav>
+
+        <main class="flex-1 h-0 overflow-y-auto p-4 pb-24 scroll-smooth relative">
+            <div class="container mx-auto max-w-md space-y-5">
+                
+                <div class="task-card p-5 rounded-2xl relative overflow-hidden bg-slate-800/50" :class="getTaskClass('calibration')">
+                    <div class="flex gap-4 items-start relative z-10">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 bg-slate-700 text-slate-400" :class="{'beacon-bg beacon-text': myTasks.calibration.done}"><i class="fa-solid fa-scale-balanced"></i></div>
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-white text-sm">暖身校準 (Warm-up)</h3>
+                            <div v-if="!myTasks.calibration.done" class="space-y-4 mt-3 p-4 bg-slate-900/80 rounded-xl border border-slate-700">
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-tighter"><span>今日熟悉度</span><span class="beacon-text text-base font-mono">{{ tempCalibration.confidence }}/5</span></div>
+                                    <input type="range" v-model.number="tempCalibration.confidence" min="1" max="5" class="w-full accent-blue-500">
+                                </div>
+                                <button @click="submitCalibration" class="w-full bg-white text-slate-900 py-3 rounded-lg text-xs font-bold transition active:scale-95">提交並解鎖</button>
+                            </div>
+                            <div v-else class="text-xs font-bold beacon-text uppercase flex items-center gap-1 mt-2 font-mono"><i class="fa-solid fa-check-circle"></i> Ready Level {{ myTasks.calibration.confidence }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="globalState.config?.enableGroupA">
+                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-2 pl-1 tracking-widest opacity-60 font-mono">Phase A: Inputs</div>
+                    <div v-for="key in ['notebook', 'slido', 'forms']" :key="key" class="task-card p-5 rounded-2xl relative overflow-hidden mb-4 bg-slate-800/30" :class="getTaskClass(key)">
+                        <div class="flex gap-4 items-start relative z-10">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-transparent transition-all duration-500" :class="myTasks[key].done ? 'beacon-bg beacon-text shadow-lg scale-110' : (myTasks[key].started ? 'bg-blue-900/30 text-blue-400' : 'bg-slate-800 text-slate-600')"><i :class="myTasks[key].done ? 'fa-solid fa-check' : mainTasks[key].icon"></i></div>
+                            <div class="flex-grow">
+                                <h3 class="font-bold text-slate-100 text-base">{{ mainTasks[key].title }}</h3>
+                                <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">{{ mainTasks[key].desc }}</p>
+                                <div v-if="isUnlocked(key)" class="flex flex-col gap-2 mt-2">
+                                    <button @click="openLink(key)" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-arrow-up-right-from-square"></i> {{ myTasks[key].done ? '再次複習' : '開啟連結' }}</button>
+                                    <button v-if="myTasks[key].started && !myTasks[key].done" @click="markDone(key)" class="w-full bg-white text-slate-900 px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow flex justify-center items-center gap-2 active:scale-95"><i class="fa-regular fa-square-check"></i> 標記為完成</button>
+                                </div>
+                                <div v-else class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 text-slate-500 text-[10px] rounded-lg font-bold mt-2 border border-slate-700 tracking-wider">🔒 尚未開放</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="globalState.config?.enableGroupB">
+                    <div class="text-[10px] font-bold text-slate-500 uppercase mb-3 mt-8 pl-1 tracking-widest border-t border-slate-800 pt-6 opacity-60 font-mono">Phase B: Creative Outputs</div>
+                    
+                    <div v-if="globalState.config?.assignmentType === 'group'" class="task-card p-5 rounded-2xl relative overflow-hidden mb-4 bg-slate-800/30 border-l-4 border-amber-500/50" :class="isUnlocked('assignment') ? '' : 'task-locked'">
+                        <div class="flex gap-4 items-center relative z-10">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 bg-amber-900/20 text-amber-500"><i class="fa-solid fa-comments"></i></div>
+                            <div class="flex-grow">
+                                <h3 class="font-bold text-slate-100 text-base">Group Discussion</h3>
+                                <p class="text-xs text-slate-400 mt-1">進入 <span class="text-amber-400 font-bold">[{{ isGroupRevealed ? myProfile.zodiac?.label : '???' }}]</span> 組討論區。</p>
+                            </div>
+                            <button @click="openLink('discussion')" class="shrink-0 bg-amber-600 text-white px-4 py-3 rounded-xl text-xs sm:text-sm font-bold shadow-lg flex items-center gap-2 active:scale-95">進入 <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="task-card p-5 rounded-2xl relative overflow-hidden mb-4 bg-slate-800/30" :class="getTaskClass('assignment')">
+                        <div class="flex gap-4 items-start relative z-10">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-all bg-slate-800 text-slate-600" :class="{'beacon-bg beacon-text': myTasks.assignment.done}"><i :class="assignmentMeta.icon"></i></div>
+                            <div class="flex-grow">
+                                <h3 class="font-bold text-slate-100 text-base">{{ assignmentMeta.title }}</h3>
+                                <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">{{ assignmentMeta.desc }}</p>
+                                <div v-if="isUnlocked('assignment')" class="flex flex-col gap-2">
+                                    <button @click="openLink('assignment')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-cloud-arrow-up"></i> 前往繳交</button>
+                                    <button v-if="myTasks.assignment.started && !myTasks.assignment.done" @click="markDone('assignment')" class="w-full bg-amber-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check-double"></i> 標記已完成</button>
+                                    <div v-if="globalState.config?.assignmentType === 'group'" class="text-xs text-slate-400">組長提交最終海報；組員請勾選貢獻紀錄，系統將自動納入參與紀錄。</div>
+                                </div>
+                                <div v-else class="text-[10px] text-slate-500 font-bold border border-slate-700 px-2 py-1 rounded inline-block">🔒 尚未開放繳交</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="task-card p-5 rounded-2xl relative overflow-hidden bg-slate-800/30" :class="getTaskClass('gallery')">
+                         <div class="flex gap-4 items-start relative z-10">
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-all bg-slate-800 text-slate-600" :class="{'beacon-bg beacon-text': myTasks.gallery.done}"><i class="fa-solid fa-images"></i></div>
+                            <div class="flex-grow">
+                                <h3 class="font-bold text-slate-100 text-base">Exhibition (賞析展覽)</h3>
+                                <p class="text-xs text-slate-400 mb-4 mt-1 leading-relaxed">進入成果展示區觀摩同儕作品。</p>
+                                <div v-if="isUnlocked('gallery')" class="flex flex-col gap-2">
+                                    <button @click="openLink('gallery')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border border-slate-600 text-slate-200 active:scale-95"><i class="fa-solid fa-eye"></i> 進入展覽</button>
+                                    <button v-if="myTasks.gallery.started && !myTasks.gallery.done" @click="markDone('gallery')" class="w-full bg-pink-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg animate-pulse-slow active:scale-95"><i class="fa-solid fa-check"></i> 賞析完畢</button>
+                                </div>
+                                <div v-else class="text-[10px] text-slate-500 font-bold border border-slate-700 px-2 py-1 rounded inline-block">🔒 尚未開放展覽</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="canDebrief" class="bg-slate-800/90 p-6 rounded-2xl border border-white/10 mt-2 mb-8 animate-fade-in relative overflow-hidden beacon-border shadow-2xl">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2 text-lg"><i class="fa-solid fa-file-signature beacon-text"></i> 課程總結 (Debrief)</h3>
+                    <div v-if="!myProfile.rating || isEditing" class="space-y-6">
+                        <textarea v-model="tempDebrief.content" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-32 resize-none" placeholder="分享您今日的心得或專案分工貢獻..."></textarea>
+                        <div v-if="myProfile.role !== 'leader'" class="space-y-4">
+                            <div class="text-sm font-bold text-slate-300">組長表現評分</div>
+                            <div class="flex items-center gap-3">
+                                <input type="range" min="0" max="5" step="1" v-model.number="tempDebrief.leaderRating" class="w-full accent-blue-500">
+                                <span class="text-sm font-bold text-white">{{ tempDebrief.leaderRating }}/5</span>
+                            </div>
+                            <textarea v-model="tempDebrief.leaderComment" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-24 resize-none" placeholder="請簡短說明組長的協作與溝通..."></textarea>
+                        </div>
+                        <div v-else class="space-y-4">
+                            <div class="text-sm font-bold text-slate-300">組長自我回饋</div>
+                            <textarea v-model="tempDebrief.leaderSelfReview" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-24 resize-none" placeholder="請簡短描述您如何協調組員與推動專案進度..."></textarea>
+                        </div>
+                        <button @click="submitDebrief" class="w-full bg-white text-slate-900 py-4 rounded-xl font-bold shadow-xl flex items-center justify-center gap-2 transition hover:bg-slate-100 active:scale-95"><i class="fa-solid fa-paper-plane"></i> 送出心得</button>
+                    </div>
+                    <div v-else class="text-center py-6">
+                        <div class="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30 font-bold"><i class="fa-solid fa-check"></i></div>
+                        <div class="text-sm font-bold text-white tracking-widest uppercase font-mono">Mission Complete!</div>
+                        <div class="text-xs text-slate-500 mt-2">您的資料已成功寫入雲端紀錄。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+                <div v-if="submitConfirmVisible" class="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
+                    <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl p-6 relative">
+                        <button @click="cancelSubmitConfirm" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                        <div class="text-center mb-5">
+                            <div class="text-2xl font-bold text-white mb-2">準備提交作品</div>
+                            <div class="text-sm text-slate-400">請確認您的角色與本次專案中的具體貢獻。</div>
+                        </div>
+                        <div class="space-y-4 text-sm text-slate-200">
+                            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                                <div class="font-bold mb-2">您的身分</div>
+                                <div class="text-white">{{ myProfile.role === 'leader' ? '組長' : '組員' }}</div>
+                                <div class="text-slate-500 mt-2" v-if="myProfile.role !== 'leader'">您目前的身份為：組員。請勾選您在本次專案中的具體貢獻，系統將自動納入您的參與紀錄。</div>
+                                <div class="text-slate-500 mt-2" v-else>您目前的身份為：組長。請直接確認送出，系統將記錄您作為組長的最終提交。</div>
+                            </div>
+                            <div v-if="myProfile.role === 'leader'" class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                                <div class="font-bold mb-2">您是組長，準備提交最終成果</div>
+                                <div class="text-slate-400 text-sm leading-relaxed">組長直接送出最終海報或作品，不需要勾選商品風格。系統會記錄此提交行為。</div>
+                            </div>
+                            <div v-else class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                                <div class="font-bold mb-3">請勾選您的協作貢獻</div>
+                                <div class="space-y-3">
+                                    <label v-for="option in contributionOptions" :key="option.value" class="flex items-start gap-3 p-3 rounded-2xl border border-slate-700 hover:border-emerald-500 transition cursor-pointer">
+                                        <input type="checkbox" :value="option.label" v-model="selectedContributions" class="mt-1 h-4 w-4 accent-emerald-400" />
+                                        <div>
+                                            <div class="font-bold text-slate-100">{{ option.label.split('：')[0] }}</div>
+                                            <div class="text-slate-400 text-xs leading-relaxed">{{ option.label.split('：')[1] }}</div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="font-bold text-slate-100 mb-2 block">其他貢獻（選填）</label>
+                                    <textarea v-model="otherContributionText" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 resize-none h-24" placeholder="如果還有其他貢獻，請簡短說明..."></textarea>
+                                </div>
+                            </div>
+                            <div class="text-xs uppercase tracking-widest text-slate-500">組長為最終海報提交者，組員則記錄自己的參與貢獻。</div>
+                        </div>
+                        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                            <button @click="cancelSubmitConfirm" class="w-full sm:w-auto px-5 py-3 rounded-2xl border border-slate-600 text-slate-300 hover:bg-slate-800 transition">取消</button>
+                            <button @click="confirmSubmitAssignment" class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition">{{ myProfile.role === 'leader' ? '確認並前往提交' : '確認並送出貢獻紀錄' }}</button>
+                        </div>
+                    </div>
+                </div>
+</div>
+
+<script type="module">
+import { createApp, reactive, ref, computed, onMounted, watch } from 'https://unpkg.com/vue@3.4.19/dist/vue.esm-browser.prod.js';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref as dbRef, onValue, get, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const CONFIG = {
+    FIREBASE: {
+        apiKey: "AIzaSyBPdK2Ptbc9srt8DY74URKQyNmceexM-ro",
+        authDomain: "cmu-11402-pathophysiology.firebaseapp.com",
+        databaseURL: "https://cmu-11402-pathophysiology-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "cmu-11402-pathophysiology",
+        storageBucket: "cmu-11402-pathophysiology.firebasestorage.app",
+        messagingSenderId: "367793212618",
+        appId: "1:367793212618:web:c11acedc50ce6fc3897833"
+    },
+    ZODIAC: [
+        {label:'子鼠', icon:'⚡️', element:'water'}, {label:'丑牛', icon:'🧱', element:'earth'}, {label:'寅虎', icon:'🔥', element:'wood'}, {label:'卯兔', icon:'🧐', element:'wood'},
+        {label:'辰龍', icon:'🌟', element:'earth'}, {label:'巳蛇', icon:'🧠', element:'fire'}, {label:'午馬', icon:'🚀', element:'fire'}, {label:'未羊', icon:'🤝', element:'earth'},
+        {label:'申猴', icon:'💡', element:'air'}, {label:'酉雞', icon:'⏱', element:'air'}, {label:'戌狗', icon:'🛡', element:'earth'}, {label:'亥豬', icon:'📚', element:'water'}
+    ],
+    TASKS_META: {
+        notebook: { title: 'Gathering', desc: '閱讀教材並整理重點。', icon: 'fa-solid fa-book-sparkles' },
+        slido: { title: 'Briefing', desc: '互動提問與投票參與。', icon: 'fa-solid fa-users-rays' },
+        forms: { title: 'Assessment', desc: '完成今日成效檢核。', icon: 'fa-solid fa-clipboard-check' }
+    }
+};
+
+const app = initializeApp(CONFIG.FIREBASE);
+const db = getDatabase(app);
+
+function useSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const playTone = (f, t, d, v = 0.1) => {
+        if (ctx.state === 'suspended') ctx.resume();
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type = t; o.frequency.setValueAtTime(f, ctx.currentTime);
+        g.gain.setValueAtTime(v, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + d);
+        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d);
+    };
+    return { playSFX: (t) => {
+        if(t==='success') { playTone(800,'sine',0.1); setTimeout(()=>playTone(1200,'sine',0.2),100); }
+        else if(t==='error') { playTone(150,'sawtooth',0.3); }
+        else if(t==='click') playTone(400,'triangle',0.05,0.05);
+    }};
+}
+
+function useRoom(sessionId, myUid) {
+    const isOnline = ref(true); 
+    const globalState = reactive({ phaseA: 'waiting', phaseB: 'waiting', links: {}, globalProgress: 0, loginStatus: 'open', config: {} });
+    const initConnection = () => {
+        window.addEventListener('online', () => isOnline.value = true);
+        window.addEventListener('offline', () => isOnline.value = false);
+        let startTick = Date.now();
+        onValue(dbRef(db, ".info/connected"), (snap) => {
+            if (snap.val() === false) { if (Date.now() - startTick > 8000) isOnline.value = false; }
+            else isOnline.value = true;
+        });
+    };
+    const startHeartbeat = () => {
+        if (!myUid.value) return; 
+        const uRef = dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`);
+        onDisconnect(uRef).update({ status: 'offline', 'auth/isActive': false });
+        const pulse = () => { if (navigator.onLine) update(uRef, { lastSeen: Date.now(), status: 'online' }); };
+        pulse(); setInterval(pulse, 10000);
+    };
+    const initRoomSync = () => { onValue(dbRef(db, `classrooms/${sessionId.value}/status`), (snap) => { if(snap.exists()) Object.assign(globalState, snap.val()); }); };
+    return { isOnline, globalState, initConnection, startHeartbeat, initRoomSync };
+}
+
+function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
+    const myTasks = reactive({ calibration: { done: false, startTime: Date.now() }, notebook: { done: false }, slido: { done: false }, forms: { done: false }, assignment: { done: false }, gallery: { done: false } });
+    const tempCalibration = reactive({ confidence: 3 });
+    const tempDebrief = reactive({ role: 'member', content: '', reflection: '', self_score: 7, leaderRating: 0, leaderComment: '', leaderSelfReview: '' });
+    const isEditing = ref(false); 
+    const initTaskSync = () => {
+        if (!myUid.value) return; 
+        onValue(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`), (snap) => {
+            const val = snap.val(); if(!val) return;
+            const stored = JSON.parse(localStorage.getItem('zodiac_identity') || '{}');
+            if(!val.auth || val.auth.isActive === false || val.auth.token !== stored.token) {
+                addToast("連線已失效或已被老師斷開", "error");
+                setTimeout(() => { localStorage.removeItem('zodiac_identity'); location.reload(); }, 2000);
+                return;
+            }
+            if(val.tasks) Object.assign(myTasks, val.tasks);
+            if(val.profile?.Role) myProfile.role = val.profile.Role;
+            if(val.rating !== undefined) myProfile.rating = val.rating;
+            if(val.feedback) { try { if(val.feedback.startsWith('{')) Object.assign(tempDebrief, JSON.parse(val.feedback)); else tempDebrief.content=val.feedback; } catch(e){} }
+        });
+    };
+    const assignmentMeta = computed(() => { const t = globalState.config?.assignmentType || 'individual'; return t === 'group' ? { title: 'Group Project', icon: 'fa-solid fa-users-viewfinder', desc:'分組討論與共學產出。' } : { title: 'Individual Work', icon: 'fa-solid fa-user-pen', desc:'個人獨立完成並提交。' }; });
+    const isLeader = computed(() => myProfile.role === 'leader');
+    const submitCalibration = () => {
+        const start = myTasks.calibration.startTime || (Date.now() - 5000);
+        const end = Date.now();
+        const duration = Math.round((end - start) / 1000);
+        update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/calibration`), {
+            done: true,
+            confidence: tempCalibration.confidence,
+            endTime: end,
+            startTime: start,
+            duration
+        }).then(() => {
+            myTasks.calibration.done = true;
+            myTasks.calibration.startTime = start;
+            myTasks.calibration.endTime = end;
+            myTasks.calibration.duration = duration;
+            myTasks.calibration.confidence = tempCalibration.confidence;
+            playSFX('success');
+            addToast('暖身校準已完成，已解鎖下一步。', 'success');
+        }).catch((error) => {
+            console.error('submitCalibration error', error);
+            addToast('暖身校準提交失敗，請稍後再試。', 'error');
+        });
+    };
+    const markDone = (k) => {
+        const start = myTasks[k].startTime || (Date.now() - 10000);
+        const up = { done: true, endTime: Date.now(), duration: Math.round((Date.now()-start)/1000), startTime: start };
+        if (k === 'assignment') up.type = globalState.config?.assignmentType || 'individual';
+        update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/${k}`), up).then(() => playSFX('success'));
+    };
+    const isUnlocked = (k) => {
+        if (k === 'calibration') return true; if (!myTasks.calibration.done) return false;
+        const pA = globalState.phaseA || 'waiting'; const pB = globalState.phaseB || 'waiting';
+        const aL = (pA === 'main_open') ? 4 : (pA === 'quiz') ? 3 : (pA === 'interact') ? 2 : (pA === 'warmup') ? 1 : 0;
+        if (k === 'notebook') return aL >= 1; if (k === 'slido') return aL >= 2; if (k === 'forms') return aL >= 3; 
+        if (k === 'assignment') return pB === 'submission_open' || pB === 'final_show';
+        if (k === 'gallery') return pB === 'gallery_open' || pB === 'final_show';
+        return false;
+    };
+    const canDebrief = computed(() => {
+        const aR = globalState.config?.enableGroupA ? (myTasks.notebook.done && myTasks.slido.done && myTasks.forms.done) : true;
+        const bR = globalState.config?.enableGroupB ? myTasks.assignment.done : true;
+        return aR && bR && (globalState.config?.enableGroupA || globalState.config?.enableGroupB);
+    });
+    const submitDebrief = () => {
+        const p = JSON.stringify({
+            v: 1,
+            content: tempDebrief.content,
+            self_score: tempDebrief.self_score,
+            leaderRating: tempDebrief.leaderRating,
+            leaderComment: tempDebrief.leaderComment,
+            leaderSelfReview: tempDebrief.leaderSelfReview
+        });
+        update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`), { rating: 1, feedback: p }); 
+        myProfile.rating = 1;
+        isEditing.value = false; addToast("心得已提交", "success");
+    };
+    const submitConfirmVisible = ref(false);
+    const selectedWorkType = ref('');
+    const submitWorkTypes = ['材料準備','寫作','繪畫','數位設計','多媒體','其他'];
+    const contributionOptions = [
+        { value: '文獻與研究', label: '文獻與研究：文獻蒐集與彙整，負責找資料、閱讀文獻並摘要重點。'},
+        { value: '內容與討論', label: '內容與討論：觀點提出與辯論，積極參與小組討論，貢獻創意或解決衝突。'},
+        { value: '協作支援', label: '協作支援：格式編修與校對，負責統整大家的文件，確保格式一致或檢查錯字。'},
+        { value: '進度與溝通', label: '進度與溝通：會議記錄與進度追蹤，負責紀錄討論事項，或提醒組員截止期限。'},
+        { value: '技術與實作', label: '技術與實作：工具操作與原型測試，協助操作軟體、協助除錯或進行初步測試。'},
+        { value: '其他', label: '其他：其他貢獻，請在下方補充說明。'}
+    ];
+    const selectedContributions = ref([]);
+    const otherContributionText = ref('');
+    const pendingLinkKey = ref('');
+    const openLink = async (k, skipConfirm = false, popupWindow = null) => {
+        playSFX('click');
+        if (k === 'assignment' && globalState.config?.assignmentType === 'group' && !skipConfirm) {
+            pendingLinkKey.value = k;
+            selectedWorkType.value = '';
+            selectedContributions.value = [];
+            otherContributionText.value = '';
+            submitConfirmVisible.value = true;
+            return;
+        }
+        if (k === 'discussion' || (k === 'assignment' && globalState.config?.assignmentType === 'individual')) {
+            const idx = CONFIG.ZODIAC.findIndex(z => z.label === myProfile.zodiac?.label);
+            const s = await get(dbRef(db, `classrooms/${sessionId.value}/groupLinks/${idx}`));
+            if (s.exists()) {
+                if(k === 'assignment') update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/assignment`), { started: true, startTime: Date.now() });
+                if (popupWindow) popupWindow.location.href = s.val(); else window.open(s.val(), '_blank');
+            } else addToast("未設定連結", "error");
+            return;
+        }
+        let url = globalState.links?.[k]; if (!url) return addToast("未設定連結", "error");
+        if (!url.startsWith('http')) url = 'https://' + url;
+        if(!myTasks[k].started) update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/${k}`), { started: true, startTime: Date.now() });
+        if (popupWindow) popupWindow.location.href = url; else window.open(url, '_blank');
+    };
+    const confirmSubmitAssignment = () => {
+        if (myProfile.role === 'leader') {
+            const key = pendingLinkKey.value;
+            const popup = window.open('about:blank', '_blank');
+            update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/assignment`), {
+                started: true,
+                done: true,
+                startTime: Date.now(),
+                endTime: Date.now(),
+                duration: 0,
+                role: myProfile.role || 'leader'
+            }).then(() => {
+                submitConfirmVisible.value = false;
+                addToast(`已確認角色：組長，直接送出最終成果。`, 'success');
+                pendingLinkKey.value = '';
+                selectedWorkType.value = '';
+                selectedContributions.value = [];
+                otherContributionText.value = '';
+                openLink(key, true, popup);
+            }).catch(() => {
+                if (popup && !popup.closed) popup.close();
+                addToast('無法開啟提交頁面，請稍後再試。', 'error');
+            });
+            return;
+        }
+        if (selectedContributions.value.length === 0 && !otherContributionText.value.trim()) {
+            return addToast("請至少勾選一項貢獻或填寫其他說明", "error");
+        }
+        const contributions = [...selectedContributions.value];
+        if (otherContributionText.value.trim()) contributions.push(`其他：${otherContributionText.value.trim()}`);
+        const start = myTasks.assignment.startTime || Date.now();
+        update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/assignment`), {
+            started: true,
+            done: true,
+            startTime: start,
+            endTime: Date.now(),
+            duration: Math.round((Date.now() - start) / 1000),
+            role: 'member',
+            contributions,
+            contributionSubmittedAt: Date.now()
+        }).then(() => {
+            submitConfirmVisible.value = false;
+            addToast("已送出貢獻紀錄，感謝您的協作！", 'success');
+            pendingLinkKey.value = '';
+            selectedWorkType.value = '';
+            selectedContributions.value = [];
+            otherContributionText.value = '';
+        });
+    };
+    const cancelSubmitConfirm = () => {
+        submitConfirmVisible.value = false;
+        pendingLinkKey.value = '';
+    };
+    return { myTasks, tempCalibration, tempDebrief, initTaskSync, markDone, isUnlocked, isEditing, canDebrief, assignmentMeta, submitCalibration, submitDebrief, openLink, submitConfirmVisible, selectedWorkType, submitWorkTypes, contributionOptions, selectedContributions, otherContributionText, confirmSubmitAssignment, cancelSubmitConfirm };
+}
+
+function useIdentity(sessionId, addToast, changeView, playSFX) {
+    const loading = ref(false); const claimingUser = ref(null); 
+    const myProfile = reactive({ uid: '', name: '', zodiac: null, studentId: '' });
+    const searchStudent = async (query) => {
+        if (!query) return addToast("請輸入關鍵字", "error");
+        const q = query.trim().toUpperCase(); const qWithS = 'S' + q; loading.value = true;
+        try {
+            const snap = await get(dbRef(db, `classrooms/${sessionId.value}/students`));
+            if (snap.exists()) {
+                let found = Object.entries(snap.val()).find(([u, s]) => {
+                    const sid = (s.profile?.StudentId || '').toUpperCase();
+                    const name = (s.profile?.Name || '');
+                    return sid === q || sid === qWithS || name === q || u.toUpperCase() === q || u.toUpperCase() === qWithS;
+                });
+                if (found) { playSFX('click'); claimingUser.value = { uid: found[0], ...found[1] }; }
+                else addToast("找不到資料", "error");
+            }
+        } catch (e) { addToast("搜尋失敗", "error"); } finally { loading.value = false; }
+    };
+
+    // 💡 嚴密鎖定邏輯：強制檢查 4 位數字
+    const executeClaim = async (pin) => {
+        const pinRegex = /^\d{4}$/; 
+        if (!pinRegex.test(pin)) {
+            addToast("請設置 4 位純數字 PIN 碼", "error", "fa-solid fa-keyboard");
+            return false;
+        }
+        
+        loading.value = true;
+        try {
+            const uid = claimingUser.value.uid;
+            const aS = await get(dbRef(db, `classrooms/${sessionId.value}/students/${uid}/auth`));
+            const aD = aS.val() || {};
+            if (aD.pin && aD.pin !== pin) { addToast("PIN 錯誤", "error"); return false; }
+            const t = crypto.randomUUID();
+            await update(dbRef(db, `classrooms/${sessionId.value}/students/${uid}/auth`), { isActive: true, token: t, pin: pin });
+            const ud = { uid, token: t, name: claimingUser.value.profile.Name, zodiac: claimingUser.value.profile.Zodiac, studentId: claimingUser.value.profile.StudentId, role: claimingUser.value.profile.Role || 'member' };
+            localStorage.setItem('zodiac_identity', JSON.stringify(ud));
+            Object.assign(myProfile, ud); myProfile.zodiac = CONFIG.ZODIAC.find(z=>z.label===ud.zodiac);
+            return true;
+        } catch(e) { return false; } finally { loading.value = false; }
+    };
+
+    const attemptAutoLogin = async () => {
+        const stored = localStorage.getItem('zodiac_identity');
+        if(!stored) { changeView('roster'); return false; }
+        loading.value = true;
+        try {
+            const local = JSON.parse(stored);
+            const s = await get(dbRef(db, `classrooms/${sessionId.value}/students/${local.uid}/auth`));
+            if(s.exists() && s.val().token === local.token) {
+                Object.assign(myProfile, local); myProfile.zodiac = CONFIG.ZODIAC.find(z=>z.label===local.zodiac); myProfile.role = local.role || 'member';
+                update(dbRef(db, `classrooms/${sessionId.value}/students/${local.uid}/auth`), { isActive: true });
+                changeView('dashboard'); return true;
+            } else { localStorage.removeItem('zodiac_identity'); changeView('roster'); return false; }
+        } catch(e) { changeView('roster'); return false; } finally { loading.value = false; }
+    };
+    const logout = async () => {
+        if(myProfile.uid) {
+            await update(dbRef(db, `classrooms/${sessionId.value}/students/${myProfile.uid}/auth`), { isActive: false });
+            await update(dbRef(db, `classrooms/${sessionId.value}/students/${myProfile.uid}`), { status: 'offline' });
+        }
+        localStorage.removeItem('zodiac_identity'); location.reload();
+    };
+    return { loading, claimingUser, myProfile, searchStudent, executeClaim, attemptAutoLogin, logout };
+}
+
+createApp({
+    setup() {
+        const form = reactive({ sessionId: localStorage.getItem('zodiac_last_session') || '', pin: '' });
+        const viewState = ref('entry'); const toasts = ref([]); const searchQuery = ref('');
+        const { playSFX } = useSound();
+        const addToast = (msg, type='info', icon='fa-solid fa-circle-info') => { toasts.value.push({id:Date.now(), msg, type, icon}); setTimeout(()=>toasts.value.shift(),3000); };
+        const myProfile = reactive({ uid: '', name: '', zodiac: null, studentId: '', role: 'member', rating: 0 });
+        const sRef = computed(() => form.sessionId); const uRef = computed(()=>myProfile.uid);
+        const { isOnline, globalState, initConnection, startHeartbeat, initRoomSync } = useRoom(sRef, uRef);
+        const { loading, claimingUser, myProfile: idP, executeClaim, attemptAutoLogin, searchStudent, logout } = useIdentity(sRef, addToast, (v)=>viewState.value=v, playSFX);
+        watch(idP, (nP) => { if(nP) Object.assign(myProfile, nP); });
+        const { myTasks, tempCalibration, tempDebrief, initTaskSync, markDone, isUnlocked, isEditing, canDebrief, assignmentMeta, submitCalibration, submitDebrief, openLink, submitConfirmVisible, selectedWorkType, submitWorkTypes, contributionOptions, selectedContributions, otherContributionText, confirmSubmitAssignment, cancelSubmitConfirm } = useTasks(sRef, uRef, globalState, myProfile, addToast, playSFX);
+        
+        onMounted(() => {
+            const pid = new URLSearchParams(window.location.search).get('id'); if(pid) form.sessionId = pid;
+            if(form.sessionId) { 
+                localStorage.setItem('zodiac_last_session', form.sessionId);
+                attemptAutoLogin().then(s => { if(s){ initRoomSync(); initTaskSync(); startHeartbeat(); } });
+            }
+            initConnection();
+        });
+
+        const enterRoom = async () => {
+            form.sessionId = form.sessionId.trim().toUpperCase(); if(!form.sessionId) return addToast("請輸入代碼", "error");
+            localStorage.setItem('zodiac_last_session', form.sessionId);
+            playSFX('click'); const s = await attemptAutoLogin(); if(s) { initRoomSync(); initTaskSync(); startHeartbeat(); }
+        };
+        const executeAtomicClaim = async () => {
+            playSFX('click'); const s = await executeClaim(form.pin);
+            if(s) { initRoomSync(); initTaskSync(); startHeartbeat(); claimingUser.value = null; viewState.value = 'dashboard'; }
+        };
+        const getTaskClass = (k) => { if(myTasks[k]?.done) return 'task-done beacon-border'; if(myTasks[k]?.started) return 'task-active beacon-border'; if(!isUnlocked(k)) return 'task-locked'; return 'bg-slate-800/50 border-transparent'; };
+        const getZodiacIcon = (l) => CONFIG.ZODIAC.find(z => z.label === l)?.icon || '👤';
+        const isGroupRevealed = computed(() => globalState.config?.enableGroupB === true);
+        const getBeaconClass = (l) => { if (!isGroupRevealed.value) return 'theme-secret'; const z = CONFIG.ZODIAC.find(x => x.label === l); return z ? `theme-${z.element}` : 'theme-earth'; };
+        const getCurrentIcon = () => { if (!isGroupRevealed.value) return '❓'; return myProfile.zodiac?.icon || '👤'; };
+                return { form, viewState, loading, toasts, searchQuery, isOnline, claimingUser, myProfile: computed(()=>myProfile), globalState, enterRoom, handleSearch: ()=>searchStudent(searchQuery.value), executeAtomicClaim, logout, myTasks, mainTasks: CONFIG.TASKS_META, assignmentMeta, tempCalibration, tempDebrief, getTaskClass, isUnlocked, isEditing, canDebrief, submitCalibration, submitDebrief, openLink, markDone, getZodiacIcon, getBeaconClass, isGroupRevealed, getCurrentIcon, globalProgress: computed(()=>globalState.globalProgress), submitConfirmVisible, selectedWorkType, submitWorkTypes, contributionOptions, selectedContributions, otherContributionText, confirmSubmitAssignment, cancelSubmitConfirm };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
