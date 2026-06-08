@@ -267,13 +267,17 @@
                         </div>
                         <div class="mt-3 space-y-2">
                             <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">預定時程</div>
-                            <div class="flex gap-2 items-center">
-                                <i class="fa-solid fa-door-open text-emerald-500 w-4 text-center text-xs"></i>
-                                <input type="time" v-model="scheduleInputs.openTime" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:border-emerald-500 outline-none">
-                                <i class="fa-solid fa-lock text-red-500 w-4 text-center text-xs"></i>
-                                <input type="time" v-model="scheduleInputs.closeTime" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:border-red-500 outline-none">
-                                <button @click="saveSchedule" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border" :class="scheduleDirty ? 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-500'">
-                                    <i class="fa-solid fa-check"></i>
+                            <div class="space-y-1.5">
+                                <div class="flex gap-2 items-center">
+                                    <i class="fa-solid fa-door-open text-emerald-500 w-4 text-center text-xs shrink-0"></i>
+                                    <input type="datetime-local" v-model="scheduleInputs.openAt" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:border-emerald-500 outline-none">
+                                </div>
+                                <div class="flex gap-2 items-center">
+                                    <i class="fa-solid fa-lock text-red-500 w-4 text-center text-xs shrink-0"></i>
+                                    <input type="datetime-local" v-model="scheduleInputs.closeAt" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:border-red-500 outline-none">
+                                </div>
+                                <button @click="saveSchedule" class="w-full py-1.5 rounded-lg text-xs font-bold transition border" :class="scheduleDirty ? 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-500'">
+                                    <i class="fa-solid fa-check mr-1"></i>{{ scheduleDirty ? '套用時程' : '已同步' }}
                                 </button>
                             </div>
                         </div>
@@ -596,7 +600,7 @@ function useClassroom(sessionId, addToast) {
     const students = ref({});
     const localLinks = reactive({ notebook:'', slido:'', forms:'', assignment:'', gallery:'' });
     const linksDirty = ref(false);
-    const scheduleInputs = reactive({ openTime: '', closeTime: '' });
+    const scheduleInputs = reactive({ openAt: '', closeAt: '' });
     const scheduleDirty = ref(false);
 
     const initListeners = () => {
@@ -605,8 +609,8 @@ function useClassroom(sessionId, addToast) {
             if (val) {
                 Object.assign(state, val);
                 if (val.links) { Object.assign(localLinks, val.links); linksDirty.value = false; }
-                if (val.scheduledOpenTime  && !scheduleDirty.value) scheduleInputs.openTime  = val.scheduledOpenTime;
-                if (val.scheduledCloseTime && !scheduleDirty.value) scheduleInputs.closeTime = val.scheduledCloseTime;
+                if (val.scheduledOpenAt  && !scheduleDirty.value) scheduleInputs.openAt  = val.scheduledOpenAt;
+                if (val.scheduledCloseAt && !scheduleDirty.value) scheduleInputs.closeAt = val.scheduledCloseAt;
             }
         });
         onValue(dbRef(db, `classrooms/${sessionId.value}/students`), (snap) => {
@@ -627,8 +631,8 @@ function useClassroom(sessionId, addToast) {
     const saveSchedule = async () => {
         try {
             await update(dbRef(db, `classrooms/${sessionId.value}/status`), {
-                scheduledOpenTime:  scheduleInputs.openTime  || null,
-                scheduledCloseTime: scheduleInputs.closeTime || null,
+                scheduledOpenAt:  scheduleInputs.openAt  || null,
+                scheduledCloseAt: scheduleInputs.closeAt || null,
             });
             scheduleDirty.value = false;
             addToast("時程已設定", "success", "fa-solid fa-clock");
@@ -641,17 +645,12 @@ function useClassroom(sessionId, addToast) {
         const sec = Math.floor(Math.abs(ms) / 1000);
         return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
     };
-    const toTs = (timeStr) => {
-        if (!timeStr) return null;
-        const [h, m] = timeStr.split(':').map(Number);
-        const d = new Date(); d.setHours(h, m, 0, 0);
-        return d.getTime();
-    };
+    const toTs = (dtStr) => dtStr ? new Date(dtStr).getTime() : null;
 
     const sessionTimer = computed(() => {
         const now = clockNow.value;
-        const openTs  = toTs(state.scheduledOpenTime);
-        const closeTs = toTs(state.scheduledCloseTime);
+        const openTs  = toTs(state.scheduledOpenAt);
+        const closeTs = toTs(state.scheduledCloseAt);
 
         if (closeTs && state.loginStatus === 'open' && closeTs > now) {
             const rem = closeTs - now;
