@@ -209,7 +209,7 @@
                             <div class="w-20 font-bold text-slate-300 flex items-center gap-2 shrink-0">
                                 <span class="text-xl">{{ z.icon }}</span> {{ z.label }}
                             </div>
-                            <input v-model="editingGroupLinks[i]" class="flex-1 bg-transparent text-sm text-white outline-none w-full" :placeholder="`${z.label} 討論板網址...`">
+                            <input v-model="editingGroupLinks[i]" @input="groupLinksDirty=true" class="flex-1 bg-transparent text-sm text-white outline-none w-full" :placeholder="`${z.label} 討論板網址...`">
                         </div>
                     </div>
                     <div v-show="groupLinkTab==='submission'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -217,7 +217,7 @@
                             <div class="w-20 font-bold text-slate-300 flex items-center gap-2 shrink-0">
                                 <span class="text-xl">{{ z.icon }}</span> {{ z.label }}
                             </div>
-                            <input v-model="editingAssignmentLinks[i]" class="flex-1 bg-transparent text-sm text-white outline-none w-full" :placeholder="`${z.label} 繳交連結...`">
+                            <input v-model="editingAssignmentLinks[i]" @input="groupLinksDirty=true" class="flex-1 bg-transparent text-sm text-white outline-none w-full" :placeholder="`${z.label} 繳交連結...`">
                         </div>
                     </div>
                 </div>
@@ -227,8 +227,8 @@
                         <button @click="loadTemplate('A')" class="text-sm text-blue-400 hover:text-blue-300 font-bold underline transition flex items-center gap-1"><i class="fa-solid fa-user"></i> 載入：個人作業版 (單一畫布)</button>
                         <button @click="loadTemplate('B')" class="text-sm text-emerald-400 hover:text-emerald-300 font-bold underline transition flex items-center gap-1"><i class="fa-solid fa-users"></i> 載入：分組討論版 (12間獨立包廂)</button>
                     </div>
-                    <button @click="saveGroupLinks" class="bg-purple-600 hover:bg-purple-500 text-white px-8 py-3 rounded-xl font-bold transition shadow-[0_0_15px_rgba(147,51,234,0.4)] flex items-center gap-2">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> 儲存並廣播至全班
+                    <button @click="saveGroupLinks" class="text-white px-8 py-3 rounded-xl font-bold transition flex items-center gap-2" :class="groupLinksDirty ? 'bg-purple-600 hover:bg-purple-500 animate-pulse shadow-[0_0_15px_rgba(147,51,234,0.5)]' : 'bg-slate-700 hover:bg-slate-600'">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> {{ groupLinksDirty ? '儲存並廣播至全班' : '已同步' }}
                     </button>
                 </div>
             </div>
@@ -791,6 +791,7 @@ function useGroupLinks(sessionId, showGroupLinkSetting, addToast) {
     const editingGroupLinks = ref(Array(12).fill(''));
     const editingAssignmentLinks = ref(Array(12).fill(''));
     const groupLinkTab = ref('discussion');
+    const groupLinksDirty = ref(false);
     const zodiacList = CONFIG.ZODIAC;
 
     const openGroupLinkSetting = async () => {
@@ -801,33 +802,38 @@ function useGroupLinks(sessionId, showGroupLinkSetting, addToast) {
         editingGroupLinks.value = (snapG.exists() && Array.isArray(snapG.val())) ? snapG.val() : [...CONFIG.ZODIAC_PADLETS_B];
         editingAssignmentLinks.value = (snapA.exists() && Array.isArray(snapA.val())) ? snapA.val() : [...CONFIG.ZODIAC_PADLETS_A];
         groupLinkTab.value = 'discussion';
+        groupLinksDirty.value = false;
         showGroupLinkSetting.value = true;
     };
-    const loadTemplate = async (type) => {
+    const loadTemplate = (type) => {
         const templateName = type === 'A' ? '個人作業版' : '分組討論版';
         const tabName = groupLinkTab.value === 'discussion' ? '討論板' : '繳交';
         if(confirm(`確定要將【${templateName}】套用至「${tabName}連結」？`)) {
             const links = type === 'A' ? [...CONFIG.ZODIAC_PADLETS_A] : [...CONFIG.ZODIAC_PADLETS_B];
             if (groupLinkTab.value === 'discussion') {
                 editingGroupLinks.value = links;
-                await set(dbRef(db, `classrooms/${sessionId.value}/groupLinks`), links);
             } else {
                 editingAssignmentLinks.value = links;
-                await set(dbRef(db, `classrooms/${sessionId.value}/assignmentLinks`), links);
             }
-            addToast(`已套用「${templateName}」至${tabName}連結！`, "success");
+            groupLinksDirty.value = true;
+            addToast(`已套用「${templateName}」，記得按儲存廣播！`, "info", "fa-solid fa-circle-info");
         }
     };
     const saveGroupLinks = async () => {
-        await Promise.all([
-            set(dbRef(db, `classrooms/${sessionId.value}/groupLinks`), editingGroupLinks.value),
-            set(dbRef(db, `classrooms/${sessionId.value}/assignmentLinks`), editingAssignmentLinks.value),
-        ]);
-        addToast("12 組專屬連結已更新！", "success");
-        showGroupLinkSetting.value = false;
+        try {
+            await Promise.all([
+                set(dbRef(db, `classrooms/${sessionId.value}/groupLinks`), editingGroupLinks.value),
+                set(dbRef(db, `classrooms/${sessionId.value}/assignmentLinks`), editingAssignmentLinks.value),
+            ]);
+            groupLinksDirty.value = false;
+            addToast("12 組專屬連結已更新！", "success");
+            showGroupLinkSetting.value = false;
+        } catch (e) {
+            addToast("儲存失敗，請檢查網路狀態", "error", "fa-solid fa-triangle-exclamation");
+        }
     };
 
-    return { editingGroupLinks, editingAssignmentLinks, groupLinkTab, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate };
+    return { editingGroupLinks, editingAssignmentLinks, groupLinkTab, groupLinksDirty, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate };
 }
 
 function useGAS(sessionId, students, addToast) {
@@ -856,7 +862,7 @@ createApp({
         const { state, students, localLinks, linksDirty, initListeners, setStatus, updateConfig, switchPhase, syncLinks } = useClassroom(sessionId, addToast);
         const { searchQuery, displayedList, studentCount, activeCount, calculateScore, isSpeedrun, getStatusColor, getBeaconClass, revokeToken, assignLeader, revokeLeader, deleteStudent } = useRoster(sessionId, students, addToast);
         const { importRaw, importMode, parsedPreview, generateDemoRoster, executeImport, undoLastImport, exportToCSV } = useImporter(sessionId, students, showImporter, addToast);
-        const { editingGroupLinks, editingAssignmentLinks, groupLinkTab, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate } = useGroupLinks(sessionId, showGroupLinkSetting, addToast);
+        const { editingGroupLinks, editingAssignmentLinks, groupLinkTab, groupLinksDirty, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate } = useGroupLinks(sessionId, showGroupLinkSetting, addToast);
         const { isSyncing, syncToSheets } = useGAS(sessionId, students, addToast);
 
         // --- Global Progress ---
@@ -894,7 +900,7 @@ createApp({
             // Importer
             importRaw, importMode, parsedPreview, generateDemoRoster, executeImport, undoLastImport, exportToCSV,
             // Group Links
-            showGroupLinkSetting, editingGroupLinks, editingAssignmentLinks, groupLinkTab, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate,
+            showGroupLinkSetting, editingGroupLinks, editingAssignmentLinks, groupLinkTab, groupLinksDirty, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate,
             // GAS
             isSyncing, syncToSheets,
             // UI Helpers
