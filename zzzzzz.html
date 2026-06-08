@@ -666,12 +666,7 @@ function useRoster(sessionId, students, addToast) {
         } 
     };
     const assignLeader = async (uid) => {
-        const updates = {};
-        allStudents.value.forEach(s => {
-            if (s.profile?.Role === 'leader' && s.uid !== uid) updates[`classrooms/${sessionId.value}/students/${s.uid}/profile/Role`] = 'member';
-        });
-        updates[`classrooms/${sessionId.value}/students/${uid}/profile/Role`] = 'leader';
-        await update(dbRef(db), updates);
+        await update(dbRef(db, `classrooms/${sessionId.value}/students/${uid}/profile`), { Role: 'leader' });
         addToast("已指定組長", "success", "fa-solid fa-crown");
     };
     const revokeLeader = async (uid) => {
