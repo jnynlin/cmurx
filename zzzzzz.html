@@ -280,6 +280,10 @@
                                     <input type="checkbox" :checked="state.config?.enableGroupB" @change="updateConfig('enableGroupB', $event.target.checked)" class="w-4 h-4 accent-amber-500">
                                     <span class="text-xs font-bold text-slate-300">啟用 Group B (專案)</span>
                                 </label>
+                                <label class="flex items-center gap-2 cursor-pointer bg-slate-900 px-3 py-2 rounded border border-slate-700 hover:border-red-500 transition select-none" v-if="state.config?.enableGroupB && state.config?.assignmentType==='group'">
+                                    <input type="checkbox" :checked="state.config?.enableDiscussion !== false" @change="updateConfig('enableDiscussion', $event.target.checked)" class="w-4 h-4 accent-red-500">
+                                    <span class="text-xs font-bold text-slate-300">開放討論板</span>
+                                </label>
                             </div>
                             <div class="w-px h-10 bg-slate-700 mx-2"></div>
                             <div class="flex bg-slate-900 rounded border border-slate-700 p-1" v-if="state.config?.enableGroupB">

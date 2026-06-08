@@ -452,7 +452,7 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
         const pA = globalState.phaseA || 'waiting'; const pB = globalState.phaseB || 'waiting';
         const aL = (pA === 'main_open') ? 4 : (pA === 'quiz') ? 3 : (pA === 'interact') ? 2 : (pA === 'warmup') ? 1 : 0;
         if (k === 'notebook') return aL >= 1; if (k === 'slido') return aL >= 2; if (k === 'forms') return aL >= 3; 
-        if (k === 'discussion') return pB !== 'waiting';
+        if (k === 'discussion') return pB !== 'waiting' && globalState.config?.enableDiscussion !== false;
         if (k === 'assignment') return pB === 'submission_open' || pB === 'final_show';
         if (k === 'gallery') return pB === 'gallery_open' || pB === 'final_show';
         return false;
