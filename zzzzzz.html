@@ -260,10 +260,22 @@
                                 <i class="fa-solid fa-lock text-2xl"></i> 禁止入場
                             </button>
                         </div>
-                        <div v-if="sessionDuration" class="mt-3 flex items-center justify-center gap-2 bg-slate-900 rounded-xl py-2 border border-slate-700">
-                            <i class="fa-solid fa-stopwatch text-sm" :class="state.loginStatus==='locked' ? 'text-red-400' : 'text-emerald-400'"></i>
-                            <span class="font-mono font-bold text-xl tracking-widest" :class="state.loginStatus==='locked' ? 'text-red-400' : 'text-emerald-400'">{{ sessionDuration }}</span>
-                            <span class="text-[10px] text-slate-500 uppercase">{{ state.loginStatus==='locked' ? '已結束' : '進行中' }}</span>
+                        <div v-if="sessionTimer" class="mt-3 flex items-center justify-center gap-2 bg-slate-900 rounded-xl py-2 border border-slate-700">
+                            <i class="fa-solid text-sm" :class="[sessionTimer.icon, sessionTimer.color]"></i>
+                            <span class="font-mono font-bold text-xl tracking-widest" :class="sessionTimer.color">{{ sessionTimer.display }}</span>
+                            <span class="text-[10px] text-slate-500 uppercase">{{ sessionTimer.label }}</span>
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">預定時程</div>
+                            <div class="flex gap-2 items-center">
+                                <i class="fa-solid fa-door-open text-emerald-500 w-4 text-center text-xs"></i>
+                                <input type="time" v-model="scheduleInputs.openTime" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:border-emerald-500 outline-none">
+                                <i class="fa-solid fa-lock text-red-500 w-4 text-center text-xs"></i>
+                                <input type="time" v-model="scheduleInputs.closeTime" @change="scheduleDirty=true" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white font-mono focus:border-red-500 outline-none">
+                                <button @click="saveSchedule" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border" :class="scheduleDirty ? 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-500'">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -584,20 +596,21 @@ function useClassroom(sessionId, addToast) {
     const students = ref({});
     const localLinks = reactive({ notebook:'', slido:'', forms:'', assignment:'', gallery:'' });
     const linksDirty = ref(false);
+    const scheduleInputs = reactive({ openTime: '', closeTime: '' });
+    const scheduleDirty = ref(false);
 
     const initListeners = () => {
         onValue(dbRef(db, `classrooms/${sessionId.value}/status`), (snap) => {
             const val = snap.val();
             if (val) {
                 Object.assign(state, val);
-                if (val.links) {
-                    Object.assign(localLinks, val.links);
-                    linksDirty.value = false;
-                }
+                if (val.links) { Object.assign(localLinks, val.links); linksDirty.value = false; }
+                if (val.scheduledOpenTime  && !scheduleDirty.value) scheduleInputs.openTime  = val.scheduledOpenTime;
+                if (val.scheduledCloseTime && !scheduleDirty.value) scheduleInputs.closeTime = val.scheduledCloseTime;
             }
         });
         onValue(dbRef(db, `classrooms/${sessionId.value}/students`), (snap) => {
-            students.value = snap.val() || {}; 
+            students.value = snap.val() || {};
         });
     };
 
@@ -611,13 +624,45 @@ function useClassroom(sessionId, addToast) {
         update(dbRef(db, `classrooms/${sessionId.value}/status`), updates);
     };
 
-    const sessionDuration = computed(() => {
+    const saveSchedule = async () => {
+        try {
+            await update(dbRef(db, `classrooms/${sessionId.value}/status`), {
+                scheduledOpenTime:  scheduleInputs.openTime  || null,
+                scheduledCloseTime: scheduleInputs.closeTime || null,
+            });
+            scheduleDirty.value = false;
+            addToast("時程已設定", "success", "fa-solid fa-clock");
+        } catch (e) {
+            addToast("儲存失敗", "error", "fa-solid fa-triangle-exclamation");
+        }
+    };
+
+    const fmtMs = (ms) => {
+        const sec = Math.floor(Math.abs(ms) / 1000);
+        return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+    };
+    const toTs = (timeStr) => {
+        if (!timeStr) return null;
+        const [h, m] = timeStr.split(':').map(Number);
+        const d = new Date(); d.setHours(h, m, 0, 0);
+        return d.getTime();
+    };
+
+    const sessionTimer = computed(() => {
+        const now = clockNow.value;
+        const openTs  = toTs(state.scheduledOpenTime);
+        const closeTs = toTs(state.scheduledCloseTime);
+
+        if (closeTs && state.loginStatus === 'open' && closeTs > now) {
+            const rem = closeTs - now;
+            return { display: fmtMs(rem), label: '距關閉', color: rem < 300000 ? 'text-red-400' : 'text-amber-400', icon: 'fa-hourglass-half' };
+        }
+        if (openTs && state.loginStatus !== 'open' && openTs > now) {
+            return { display: fmtMs(openTs - now), label: '距開放', color: 'text-blue-400', icon: 'fa-hourglass-start' };
+        }
         if (!state.openedAt) return null;
-        const end = state.closedAt || clockNow.value;
-        const sec = Math.floor((end - state.openedAt) / 1000);
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        const end = state.closedAt || now;
+        return { display: fmtMs(end - state.openedAt), label: state.loginStatus === 'locked' ? '已結束' : '進行中', color: state.loginStatus === 'locked' ? 'text-red-400' : 'text-emerald-400', icon: 'fa-stopwatch' };
     });
     const updateConfig = (key, value) => update(dbRef(db, `classrooms/${sessionId.value}/status/config`), { [key]: value });
     const switchPhase = async (p, group) => {
@@ -639,7 +684,7 @@ function useClassroom(sessionId, addToast) {
         }
     };
 
-    return { state, students, localLinks, linksDirty, initListeners, setStatus, updateConfig, switchPhase, syncLinks, sessionDuration };
+    return { state, students, localLinks, linksDirty, initListeners, setStatus, updateConfig, switchPhase, syncLinks, sessionTimer, scheduleInputs, scheduleDirty, saveSchedule };
 }
 
 function useRoster(sessionId, students, addToast) {
@@ -881,7 +926,7 @@ createApp({
         // --- Composables ---
         const { form, hasJoined, login, logout, refreshId, sessionHistory, showHistory, manualSessionId, switchSession } = useAuthAndSession(addToast);
         const sessionId = computed(() => form.sessionId);
-        const { state, students, localLinks, linksDirty, initListeners, setStatus, updateConfig, switchPhase, syncLinks, sessionDuration } = useClassroom(sessionId, addToast);
+        const { state, students, localLinks, linksDirty, initListeners, setStatus, updateConfig, switchPhase, syncLinks, sessionTimer, scheduleInputs, scheduleDirty, saveSchedule } = useClassroom(sessionId, addToast);
         const { searchQuery, displayedList, studentCount, activeCount, calculateScore, isSpeedrun, getStatusColor, getBeaconClass, revokeToken, assignLeader, revokeLeader, deleteStudent } = useRoster(sessionId, students, addToast);
         const { importRaw, importMode, parsedPreview, generateDemoRoster, executeImport, undoLastImport, exportToCSV } = useImporter(sessionId, students, showImporter, addToast);
         const { editingGroupLinks, editingAssignmentLinks, groupLinkTab, groupLinksDirty, zodiacList, openGroupLinkSetting, saveGroupLinks, loadTemplate } = useGroupLinks(sessionId, showGroupLinkSetting, addToast);
@@ -914,7 +959,7 @@ createApp({
             // UI State
             toasts, showImporter, showGroupLinkSetting,
             // Classroom State
-            state, localLinks, linksDirty, setStatus, switchPhase, updateConfig, syncLinks, sessionDuration,
+            state, localLinks, linksDirty, setStatus, switchPhase, updateConfig, syncLinks, sessionTimer, scheduleInputs, scheduleDirty, saveSchedule,
             // Roster
             searchQuery, displayedList, studentCount, activeCount, globalProgress,
             calculateScore, isSpeedrun, getStatusColor, getBeaconClass,
