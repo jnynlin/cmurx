@@ -31,8 +31,9 @@
         .status-online { background-color: #22c55e; box-shadow: 0 0 10px #22c55e; }
         .status-offline { background-color: #64748b; opacity: 0.5; } 
         .status-late { background-color: #f59e0b; }
-        .elm-fire { border-left: 6px solid #ef4444; } .elm-water { border-left: 6px solid #3b82f6; } 
+        .elm-fire { border-left: 6px solid #ef4444; } .elm-water { border-left: 6px solid #3b82f6; }
         .elm-air { border-left: 6px solid #fbbf24; } .elm-earth { border-left: 6px solid #22c55e; }
+        .elm-wood { border-left: 6px solid #84cc16; }
         input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); }
         .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
         .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(30px); }
@@ -49,7 +50,7 @@
     <div class="fixed top-8 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
         <transition-group name="toast">
             <div v-for="t in toasts" :key="t.id" @click="toasts.splice(toasts.indexOf(t), 1)" class="cursor-pointer pointer-events-auto px-6 py-4 rounded-xl shadow-2xl border-2 border-slate-600 bg-slate-800 text-white flex items-center gap-4 min-w-[320px]">
-                <i :class="t.icon" class="text-2xl" :class="t.type==='error'?'text-red-400':(t.type==='success'?'text-emerald-400':'text-blue-400')"></i>
+                <i :class="[t.icon, t.type==='error'?'text-red-400':(t.type==='success'?'text-emerald-400':'text-blue-400')]" class="text-2xl"></i>
                 <div class="text-base font-bold tracking-wide">{{ t.msg }}</div>
             </div>
         </transition-group>
@@ -574,9 +575,15 @@ function useAuthAndSession(addToast) {
     onMounted(() => {
         const savedHistory = localStorage.getItem('zodiac_history');
         if (savedHistory) { try { sessionHistory.value = JSON.parse(savedHistory); } catch(e){} }
-        
-        const savedId = localStorage.getItem('zodiac_last_session');
-        if (savedId) form.sessionId = savedId;
+
+        const urlId = new URLSearchParams(window.location.search).get('id');
+        if (urlId) {
+            form.sessionId = urlId;
+            localStorage.setItem('zodiac_last_session', urlId);
+        } else {
+            const savedId = localStorage.getItem('zodiac_last_session');
+            if (savedId) form.sessionId = savedId;
+        }
 
         onAuthStateChanged(auth, (u) => {
             hasJoined.value = !!u;
@@ -847,6 +854,7 @@ function useImporter(sessionId, students, showImporter, addToast) {
         link.href = URL.createObjectURL(blob);
         link.download = `Zodiac_Roster_${sessionId.value}.csv`;
         link.click();
+        URL.revokeObjectURL(link.href);
         addToast("名單與分組已成功匯出！", "success");
     };
 
@@ -948,7 +956,7 @@ createApp({
         });
 
         // --- UI Helpers ---
-        const copyLink = () => navigator.clipboard.writeText(`${window.location.origin}/student.html?id=${form.sessionId}`).then(()=>addToast("連結已複製", "success"));
+        const copyLink = () => navigator.clipboard.writeText(`${window.location.origin}/cmurx/student.html?id=${form.sessionId}`).then(()=>addToast("連結已複製", "success"));
         const qrCodeUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/cmurx/student.html?id=' + form.sessionId)}`);
         const copySessionId = () => navigator.clipboard.writeText(form.sessionId).then(()=>addToast("教室代碼已複製", "success"));
 
