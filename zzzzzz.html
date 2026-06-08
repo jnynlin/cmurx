@@ -423,10 +423,11 @@
                                     </div>
                                 </td>
                                 <td class="p-4 border-l border-slate-700">
-                                    <div class="flex items-center gap-2">
-                                        <div class="status-dot" :class="s.tasks?.assignment?.done?'bg-amber-500 shadow-[0_0_5px_#f59e0b]':'bg-slate-800'" title="心得繳交"></div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <div class="status-dot" :class="s.tasks?.assignment?.done?'bg-amber-500 shadow-[0_0_5px_#f59e0b]':'bg-slate-800'" :title="s.tasks?.assignment?.contributions?.length ? s.tasks.assignment.contributions.join(' | ') : '心得繳交'"></div>
                                         <div class="status-dot" :class="s.tasks?.gallery?.done?'bg-pink-500 shadow-[0_0_5px_#ec4899]':'bg-slate-800'" title="展覽"></div>
                                         <span v-if="s.tasks?.assignment?.type === 'group'" class="text-[9px] border border-amber-500/50 text-amber-500 px-1 rounded ml-2">GRP</span>
+                                        <span v-if="s.tasks?.assignment?.contributions?.length" class="text-[9px] text-emerald-400 font-mono ml-1" :title="s.tasks.assignment.contributions.join('\n')">+{{ s.tasks.assignment.contributions.length }}</span>
                                     </div>
                                 </td>
                                 <td class="p-4 text-right pr-6"><span class="status-dot" :class="getStatusColor(s)"></span></td>
@@ -916,7 +917,25 @@ function useGAS(sessionId, students, addToast) {
         if (!CONFIG.GAS_URL) return addToast("未設定 GAS", "error");
         isSyncing.value = true;
         try {
-            await fetch(CONFIG.GAS_URL, { method: 'POST', body: JSON.stringify({ sessionId: sessionId.value, students: students.value, timestamp: Date.now() }) });
+            const rows = Object.entries(students.value || {}).map(([uid, s]) => ({
+                uid,
+                studentId:            s.profile?.StudentId || '',
+                name:                 s.profile?.Name || '',
+                zodiac:               s.profile?.Zodiac || '',
+                role:                 s.profile?.Role || 'member',
+                calibration:          s.tasks?.calibration?.done ? 1 : 0,
+                calibration_confidence: s.tasks?.calibration?.confidence || 0,
+                notebook:             s.tasks?.notebook?.done ? 1 : 0,
+                slido:                s.tasks?.slido?.done ? 1 : 0,
+                forms:                s.tasks?.forms?.done ? 1 : 0,
+                assignment:           s.tasks?.assignment?.done ? 1 : 0,
+                assignment_role:      s.tasks?.assignment?.role || '',
+                contributions:        (s.tasks?.assignment?.contributions || []).join(' | '),
+                gallery:              s.tasks?.gallery?.done ? 1 : 0,
+                rating:               s.rating || 0,
+                feedback:             s.feedback || '',
+            }));
+            await fetch(CONFIG.GAS_URL, { method: 'POST', body: JSON.stringify({ sessionId: sessionId.value, timestamp: Date.now(), rows }) });
             addToast("存檔成功", "success");
         } catch (e) { addToast("存檔失敗", "error"); } finally { isSyncing.value = false; }
     };

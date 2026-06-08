@@ -563,7 +563,7 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
             selectedWorkType.value = '';
             selectedContributions.value = [];
             otherContributionText.value = '';
-        });
+        }).catch(() => addToast("送出失敗，請稍後再試", 'error'));
     };
     const cancelSubmitConfirm = () => {
         submitConfirmVisible.value = false;
