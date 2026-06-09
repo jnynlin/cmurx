@@ -37,15 +37,15 @@ function doPost(e) {
     if (!sheet) sheet = ss.insertSheet(sessionId);
 
     const headers = [
-      "Student ID",               "Name",                     "Zodiac",
-      "Total Score",              "Status",
-      "Group A: Calibration (5%)","Group A: Reading (15%)",   "Group A: Interactive (15%)",
-      "Group A: Quiz (25%)",      "Group A: Reflection (10%)",
-      "Group B: Assignment (15%)","Group B: Role",            "Group B: Contributions",
-      "Group B: Gallery",
-      "Feedback",                 "Self Score (1-5)",         "Warmup Confidence (1-5)",
-      "Flags (Speedrun)",         "Last Sync"
-    ]; // 19 cols
+      "學號 (ID)",                "姓名 (Name)",              "生肖 (Zodiac)",
+      "總分 (Score)",              "連線狀態",
+      "Group A: 校準 (5%)",       "Group A: 閱讀 (15%)",      "Group A: 互動 (15%)",
+      "Group A: 測驗 (25%)",      "Group A: 反思 (10%)",
+      "Group B: 作業/專案 (15%)", "Group B: 角色",            "Group B: 協作貢獻",
+      "Group B: 展覽完成",
+      "心得內容 (Feedback)",       "課末自評分 (1-5)",          "暖身信心 (1-5)",
+      "異常標記 (Speedrun)",       "最後連線時間"
+    ]; // 19 欄
 
     // 永遠明確寫入第 1 列標題（避免 appendRow 因 lastRow 偏移導致標題消失）
     sheet.getRange(1, 1, 1, headers.length).setValues([headers])
@@ -68,15 +68,15 @@ function doPost(e) {
 
       if (r.notebook === 1) {
         const d = Number(r.notebook_duration) || 0;
-        if (d > 0 && d < 15) { score += 5;  tags.push(`ReadTooFast(${d}s)`); } else { score += 15; }
+        if (d > 0 && d < 15) { score += 5;  tags.push(`閱讀過快(${d}s)`); } else { score += 15; }
       }
       if (r.slido === 1) {
         const d = Number(r.slido_duration) || 0;
-        if (d > 0 && d < 5)  { score += 5;  tags.push(`SlidoTooFast(${d}s)`); } else { score += 15; }
+        if (d > 0 && d < 5)  { score += 5;  tags.push(`互動秒關(${d}s)`); } else { score += 15; }
       }
       if (r.forms === 1) {
         const d = Number(r.forms_duration) || 0;
-        if (d > 0 && d < 20) { score += 10; tags.push(`FormTooFast(${d}s)`); } else { score += 25; }
+        if (d > 0 && d < 20) { score += 10; tags.push(`測驗秒填(${d}s)`); } else { score += 25; }
       }
       if (r.role === 'leader') {
         score += Math.min(10, (Number(r.leader_rating) || 0) * 2);
@@ -89,14 +89,14 @@ function doPost(e) {
         r.name      || "",                                                                        //  2 姓名
         r.zodiac    || "",                                                                        //  3 生肖
         score,                                                                                    //  4 總分
-        "Synced",                                                                                  //  5 Status
+        "已同步",                                                                                  //  5 連線狀態
         r.calibration === 1 ? "OK" : "",                                                         //  6 校準
         r.notebook    === 1 ? ((r.notebook_duration || 0) + "s") : "",                          //  7 閱讀
         r.slido       === 1 ? ((r.slido_duration    || 0) + "s") : "",                          //  8 互動
         r.forms       === 1 ? ((r.forms_duration    || 0) + "s") : "",                          //  9 測驗
         r.rating      === 1 ? "OK" : "",                                                         // 10 反思
         r.assignment  === 1 ? "OK(15)" : "",                                                     // 11 作業/專案
-        r.assignment_role === 'leader' ? "Leader" : (r.assignment_role === 'member' ? "Member" : ""), // 12 Role
+        r.assignment_role === 'leader' ? "組長" : (r.assignment_role === 'member' ? "組員" : ""), // 12 角色
         r.contributions || "",                                                                    // 13 協作貢獻
         r.gallery     === 1 ? "OK(15)" : "",                                                     // 14 展覽完成
         r.feedback    || "",                                                                      // 15 心得 (plain text)
@@ -113,12 +113,12 @@ function doPost(e) {
 
     // 同步時間戳記寫在第 20 欄第 1 列（標題列右側）
     const nowHeader = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy/MM/dd HH:mm:ss");
-    sheet.getRange(1, headers.length + 1).setValue("Last sync: " + nowHeader);
+    sheet.getRange(1, headers.length + 1).setValue("最後同步: " + nowHeader);
 
     return ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       rowCount: outputRows.length,
-      message: `Successfully synced ${outputRows.length} rows to [${sessionId}]`
+      message: `已成功同步 ${outputRows.length} 筆資料至 [${sessionId}]`
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
