@@ -395,13 +395,15 @@ const ensureAnonymousAuth = async () => {
 };
 
 function useSound() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let ctx = null;
+    const getCtx = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; };
     const playTone = (f, t, d, v = 0.1) => {
-        if (ctx.state === 'suspended') ctx.resume();
-        const o = ctx.createOscillator(); const g = ctx.createGain();
-        o.type = t; o.frequency.setValueAtTime(f, ctx.currentTime);
-        g.gain.setValueAtTime(v, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + d);
-        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d);
+        const c = getCtx();
+        if (c.state === 'suspended') c.resume();
+        const o = c.createOscillator(); const g = c.createGain();
+        o.type = t; o.frequency.setValueAtTime(f, c.currentTime);
+        g.gain.setValueAtTime(v, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + d);
+        o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d);
     };
     return { playSFX: (t) => {
         if(t==='success') { playTone(800,'sine',0.1); setTimeout(()=>playTone(1200,'sine',0.2),100); }
@@ -433,15 +435,19 @@ function useRoom(sessionId, myUid) {
         };
         pulse(); setInterval(pulse, 10000);
     };
-    const initRoomSync = () => { onValue(dbRef(db, `classrooms/${sessionId.value}/status`), (snap) => { if(snap.exists()) Object.assign(globalState, snap.val()); }); };
+    let _roomSynced = false;
+    const initRoomSync = () => {
+        if (_roomSynced) return;
+        _roomSynced = true;
+        onValue(dbRef(db, `classrooms/${sessionId.value}/status`), (snap) => { if(snap.exists()) Object.assign(globalState, snap.val()); });
+    };
     return { isOnline, globalState, initConnection, startHeartbeat, initRoomSync };
 }
 
 function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
     const myTasks = reactive({ calibration: { done: false, startTime: Date.now() }, notebook: { done: false }, slido: { done: false }, forms: { done: false }, assignment: { done: false }, gallery: { done: false } });
     const tempCalibration = reactive({ confidence: 3 });
-    // FIX: Removed dead leaderComment payload
-    const tempDebrief = reactive({ role: 'member', content: '', reflection: '', self_score: 5, leaderRating: 5, leaderSelfReview: '' });
+    const tempDebrief = reactive({ content: '', reflection: '', self_score: 5, leaderRating: 5, leaderSelfReview: '' });
     const isEditing = ref(false); 
     
     const initTaskSync = () => {
@@ -613,17 +619,23 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
         // FIX: Pop-up blocker and race condition fix for leaders
         if (myProfile.role === 'leader') {
             const key = pendingLinkKey.value;
-            const popup = window.open('about:blank', '_blank'); // Open synchronously
-            const start = myTasks.assignment.startTime || Date.now(); 
-            
-            // Fire the update asynchronously and move on immediately
+            const popup = window.open('about:blank', '_blank');
+            const start = myTasks.assignment.startTime || Date.now();
+            const now = Date.now();
+
+            // Optimistic local update so task-done UI reflects immediately
+            myTasks.assignment.started = true;
+            myTasks.assignment.done = true;
+            myTasks.assignment.startTime = start;
+            myTasks.assignment.endTime = now;
+
             update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}/tasks/assignment`), {
                 started: true,
                 done: true,
-                type: taskType, 
+                type: taskType,
                 startTime: start,
-                endTime: Date.now(),
-                duration: Math.round((Date.now() - start) / 1000), 
+                endTime: now,
+                duration: Math.round((now - start) / 1000),
                 role: myProfile.role || 'leader'
             }).catch(() => console.error("Leader submission sync delayed"));
 
@@ -774,9 +786,9 @@ createApp({
         
         onMounted(() => {
             const pid = new URLSearchParams(window.location.search).get('id'); if(pid) form.sessionId = pid;
-            if(form.sessionId) { 
+            if(form.sessionId) {
                 localStorage.setItem('zodiac_last_session', form.sessionId);
-                attemptAutoLogin().then(s => { if(s){ initRoomSync(); initTaskSync(); startHeartbeat(); } });
+                attemptAutoLogin().then(s => { initRoomSync(); if(s){ initTaskSync(); startHeartbeat(); } });
             }
             initConnection();
         });
@@ -784,12 +796,13 @@ createApp({
         const enterRoom = async () => {
             form.sessionId = form.sessionId.trim().toUpperCase(); if(!form.sessionId) return addToast("請輸入代碼", "error");
             localStorage.setItem('zodiac_last_session', form.sessionId);
-            playSFX('click'); const s = await attemptAutoLogin(); if(s) { initRoomSync(); initTaskSync(); startHeartbeat(); }
+            playSFX('click'); const s = await attemptAutoLogin(); initRoomSync(); if(s) { initTaskSync(); startHeartbeat(); }
         };
         
         const executeAtomicClaim = async () => {
             playSFX('click'); const s = await executeClaim(form.pin);
             if(s) { initRoomSync(); initTaskSync(); startHeartbeat(); claimingUser.value = null; viewState.value = 'dashboard'; }
+            else { form.pin = ''; }
         };
         
         const getTaskClass = (k) => { if(myTasks[k]?.done) return 'task-done beacon-border'; if(myTasks[k]?.started) return 'task-active beacon-border'; if(!isUnlocked(k)) return 'task-locked'; return 'bg-slate-800/50 border-transparent'; };
