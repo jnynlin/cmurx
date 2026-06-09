@@ -448,7 +448,8 @@ const CONFIG = {
         messagingSenderId: "367793212618",
         appId: "1:367793212618:web:c11acedc50ce6fc3897833"
     },
-    GAS_URL: "https://script.google.com/macros/s/AKfycbyUjUj--8y3LwDUhjjosPUwAwojHeWxGG-KmB0ZNPdBrm_Pc-_UA8stK5LZsitp0XuyUw/exec", 
+    GAS_URL: "https://script.google.com/macros/s/AKfycbyUjUj--8y3LwDUhjjosPUwAwojHeWxGG-KmB0ZNPdBrm_Pc-_UA8stK5LZsitp0XuyUw/exec",
+    GAS_SECRET: "zodiac-2026-cmuh",
     ZODIAC: [
         {label:'子鼠', icon:'⚡️', element:'water'}, {label:'丑牛', icon:'🧱', element:'earth'}, {label:'寅虎', icon:'🔥', element:'wood'}, {label:'卯兔', icon:'🧐', element:'wood'},
         {label:'辰龍', icon:'🌟', element:'earth'}, {label:'巳蛇', icon:'🧠', element:'fire'}, {label:'午馬', icon:'🚀', element:'fire'}, {label:'未羊', icon:'🤝', element:'earth'},
@@ -983,7 +984,7 @@ function useGAS(sessionId, students, addToast) {
                 leader_rating:        s.profile?.leaderRating || 0
             }));
             
-            const resp = await fetch(CONFIG.GAS_URL, { method: 'POST', body: JSON.stringify({ sessionId: sessionId.value, timestamp: Date.now(), rows }) });
+            const resp = await fetch(CONFIG.GAS_URL, { method: 'POST', body: JSON.stringify({ sessionId: sessionId.value, timestamp: Date.now(), secret: CONFIG.GAS_SECRET, rows }) });
             if (!resp.ok) throw new Error(`GAS returned ${resp.status}`);
             addToast("存檔成功，資料已同步至試算表！", "success");
         } catch (e) { addToast("存檔失敗，請檢查網路連線", "error"); } finally { isSyncing.value = false; }
