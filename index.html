@@ -246,20 +246,26 @@
                         <textarea v-model="tempDebrief.content" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-32 resize-none" placeholder="分享您今日的心得或專案分工貢獻..."></textarea>
                         
                         <div v-if="myProfile.role !== 'leader'" class="space-y-4">
-                            <div class="text-sm font-bold text-slate-300">今日自我評分</div>
-                            <div class="flex items-center gap-3">
-                                <input type="range" min="1" max="5" step="1" v-model.number="tempDebrief.self_score" class="w-full accent-blue-500">
-                                <span class="text-sm font-bold text-white">{{ tempDebrief.self_score }}/5</span>
-                            </div>
+                            <template v-if="!myProfile.rating || !isEditing">
+                                <div class="text-sm font-bold text-slate-300">今日自我評分</div>
+                                <div class="flex items-center gap-3">
+                                    <input type="range" min="1" max="5" step="1" v-model.number="tempDebrief.self_score" class="w-full accent-blue-500">
+                                    <span class="text-sm font-bold text-white">{{ tempDebrief.self_score }}/5</span>
+                                </div>
+                            </template>
+                            <div v-else class="text-xs text-slate-500 italic">評分已鎖定（{{ tempDebrief._locked_self_score }}/5）</div>
                             <textarea v-model="tempDebrief.reflection" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-24 resize-none" placeholder="請簡短說明您在本次課程的學習心得與自我評估..."></textarea>
                         </div>
-                        
+
                         <div v-else class="space-y-4">
-                            <div class="text-sm font-bold text-slate-300">組長自我評分 (1-5分)</div>
-                            <div class="flex items-center gap-3">
-                                <input type="range" min="1" max="5" step="1" v-model.number="tempDebrief.leaderRating" class="w-full accent-amber-500">
-                                <span class="text-sm font-bold text-white">{{ tempDebrief.leaderRating }}/5</span>
-                            </div>
+                            <template v-if="!myProfile.rating || !isEditing">
+                                <div class="text-sm font-bold text-slate-300">組長自我評分 (1-5分)</div>
+                                <div class="flex items-center gap-3">
+                                    <input type="range" min="1" max="5" step="1" v-model.number="tempDebrief.leaderRating" class="w-full accent-amber-500">
+                                    <span class="text-sm font-bold text-white">{{ tempDebrief.leaderRating }}/5</span>
+                                </div>
+                            </template>
+                            <div v-else class="text-xs text-slate-500 italic">評分已鎖定（{{ tempDebrief._locked_leaderRating }}/5）</div>
                             <div class="text-sm font-bold text-slate-300 mt-2">組長自我回饋</div>
                             <textarea v-model="tempDebrief.leaderSelfReview" class="w-full p-4 bg-slate-900/80 border border-slate-600 rounded-xl text-sm text-white focus:border-white outline-none h-24 resize-none" placeholder="請簡短描述您如何協調組員與推動專案進度..."></textarea>
                         </div>
@@ -270,7 +276,9 @@
                         <div class="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30 font-bold"><i class="fa-solid fa-check"></i></div>
                         <div class="text-sm font-bold text-white tracking-widest uppercase font-mono">Mission Complete!</div>
                         <div class="text-xs text-slate-500 mt-2 mb-6">您的資料已成功寫入雲端紀錄。</div>
-                        
+                        <button @click="isEditing = true" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition border border-slate-500 flex items-center justify-center gap-2 mx-auto">
+                            <i class="fa-solid fa-pen"></i> 修改心得文字
+                        </button>
                     </div>
                 </div>
             </div>
@@ -460,7 +468,7 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
             if(val.tasks) Object.assign(myTasks, val.tasks);
             if(val.profile?.Role) myProfile.role = val.profile.Role;
             if(val.rating !== undefined) myProfile.rating = val.rating;
-            if(val.feedback) { try { if(val.feedback.startsWith('{')) Object.assign(tempDebrief, JSON.parse(val.feedback)); else tempDebrief.content=val.feedback; } catch(e){} }
+            if(val.feedback) { try { if(val.feedback.startsWith('{')) { const fd = JSON.parse(val.feedback); Object.assign(tempDebrief, fd); tempDebrief._locked_self_score = fd.self_score; tempDebrief._locked_leaderRating = fd.leaderRating; } else tempDebrief.content=val.feedback; } catch(e){} }
         });
     };
     
@@ -515,26 +523,29 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
     });
     
     const submitDebrief = () => {
-        // FIX: Removed dead leaderComment payload
-        const p = JSON.stringify({
+        const isFirstSubmit = !myProfile.rating;
+        // Re-edit: preserve original scores, only update text fields
+        const payload = {
             v: 1,
             content: tempDebrief.content,
-            self_score: tempDebrief.self_score,
-            reflection: tempDebrief.reflection,
-            leaderRating: tempDebrief.leaderRating,
+            self_score:       isFirstSubmit ? tempDebrief.self_score       : (tempDebrief._locked_self_score   || tempDebrief.self_score),
+            reflection:       tempDebrief.reflection,
+            leaderRating:     isFirstSubmit ? tempDebrief.leaderRating     : (tempDebrief._locked_leaderRating  || tempDebrief.leaderRating),
             leaderSelfReview: tempDebrief.leaderSelfReview
-        });
-        
-        const updates = { rating: 1, feedback: p };
-        if (myProfile.role === 'leader') {
-            updates['profile/leaderRating'] = tempDebrief.leaderRating || 5; 
+        };
+
+        const updates = { rating: 1, feedback: JSON.stringify(payload) };
+        if (isFirstSubmit && myProfile.role === 'leader') {
+            updates['profile/leaderRating'] = tempDebrief.leaderRating || 5;
         }
 
         update(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`), updates)
             .then(() => {
                 myProfile.rating = 1;
+                tempDebrief._locked_self_score  = payload.self_score;
+                tempDebrief._locked_leaderRating = payload.leaderRating;
                 isEditing.value = false;
-                addToast("心得與評分已成功提交！", "success");
+                addToast(isFirstSubmit ? "心得與評分已成功提交！" : "心得文字已更新！", "success");
             })
             .catch((error) => {
                 console.error("心得送出失敗:", error);
