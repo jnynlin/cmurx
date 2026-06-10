@@ -1,9 +1,9 @@
 /**
- * ZODIAC OPS CENTER - DATA SYNC SERVICE v5.4
+ * ZODIAC OPS CENTER - DATA SYNC SERVICE v5.5
  *
- * Changes from v5.3:
- *   - SECURITY: shared secret check — rejects requests without correct secret
- *   - Headers changed to English
+ * Changes from v5.4:
+ *   - Add reflection (學習反思) and leader_review (組長領導心得) columns (19→21)
+ *   - Debrief is now final (no re-edit from student portal)
  */
 
 const GAS_SECRET = "zodiac-2026-cmuh"; // must match CONFIG.GAS_SECRET in zzzzzz.html
@@ -43,9 +43,10 @@ function doPost(e) {
       "Group A: 測驗 (25%)",      "Group A: 反思 (10%)",
       "Group B: 作業/專案 (15%)", "Group B: 角色",            "Group B: 協作貢獻",
       "Group B: 展覽完成",
-      "心得內容 (Feedback)",       "課末自評分 (1-5)",          "暖身信心 (1-5)",
+      "心得內容 (Feedback)",       "課末自評分 (1-5)",          "學習反思",
+      "組長領導心得",               "暖身信心 (1-5)",
       "異常標記 (Speedrun)",       "最後連線時間"
-    ]; // 19 欄
+    ]; // 21 欄
 
     // 永遠明確寫入第 1 列標題（避免 appendRow 因 lastRow 偏移導致標題消失）
     sheet.getRange(1, 1, 1, headers.length).setValues([headers])
@@ -99,11 +100,13 @@ function doPost(e) {
         r.assignment_role === 'leader' ? "組長" : (r.assignment_role === 'member' ? "組員" : ""), // 12 角色
         r.contributions || "",                                                                    // 13 協作貢獻
         r.gallery     === 1 ? "OK(15)" : "",                                                     // 14 展覽完成
-        r.feedback    || "",                                                                      // 15 心得 (plain text)
-        r.self_score  || "",                                                                      // 16 課末自評分
-        r.calibration_confidence || "",                                                           // 17 暖身信心
-        tags.join(", "),                                                                          // 18 異常標記
-        now                                                                                       // 19 最後連線時間
+        r.feedback      || "",                                                                    // 15 心得 (plain text)
+        r.self_score    || "",                                                                    // 16 課末自評分
+        r.reflection    || "",                                                                    // 17 學習反思
+        r.leader_review || "",                                                                    // 18 組長領導心得
+        r.calibration_confidence || "",                                                           // 19 暖身信心
+        tags.join(", "),                                                                          // 20 異常標記
+        now                                                                                       // 21 最後連線時間
       ];
     });
 

@@ -984,6 +984,8 @@ function useGAS(sessionId, students, addToast) {
                 rating:               s.rating || 0,
                 feedback:             (() => { try { return JSON.parse(s.feedback || '').content || ''; } catch { return s.feedback || ''; } })(),
                 self_score:           (() => { try { return JSON.parse(s.feedback || '').self_score || 0; } catch { return 0; } })(),
+                reflection:           (() => { try { return JSON.parse(s.feedback || '').reflection || ''; } catch { return ''; } })(),
+                leader_review:        (() => { try { return JSON.parse(s.feedback || '').leaderSelfReview || ''; } catch { return ''; } })(),
                 leader_rating:        s.profile?.leaderRating || 0
             }));
             
