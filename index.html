@@ -460,8 +460,10 @@ function useTasks(sessionId, myUid, globalState, myProfile, addToast, playSFX) {
         onValue(dbRef(db, `classrooms/${sessionId.value}/students/${myUid.value}`), (snap) => {
             const val = snap.val(); if(!val) return;
             const stored = JSON.parse(localStorage.getItem('zodiac_identity') || '{}');
-            if(!val.auth || val.auth.isActive === false || val.auth.token !== stored.token) {
-                addToast("連線已失效或已被老師斷開", "error");
+            // Only kick on teacher force-logout (token cleared) or token mismatch.
+            // Do NOT kick on isActive===false alone — that fires from onDisconnect during normal refresh.
+            if(!val.auth || val.auth.token === null || val.auth.token !== stored.token) {
+                addToast("已被老師斷開連線", "error");
                 setTimeout(() => { localStorage.removeItem('zodiac_identity'); location.reload(); }, 2000);
                 return;
             }
