@@ -44,6 +44,7 @@
         .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
         .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(30px); }
     </style>
+    <script src="config.js"></script>
 </head>
 <body class="overflow-hidden select-none">
 <div id="app" v-cloak class="h-screen-dvh flex flex-col relative">
@@ -340,15 +341,7 @@ import { getDatabase, ref as dbRef, onValue, get, update, onDisconnect } from "h
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const CONFIG = {
-    FIREBASE: {
-        apiKey: "AIzaSyBPdK2Ptbc9srt8DY74URKQyNmceexM-ro",
-        authDomain: "cmu-11402-pathophysiology.firebaseapp.com",
-        databaseURL: "https://cmu-11402-pathophysiology-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "cmu-11402-pathophysiology",
-        storageBucket: "cmu-11402-pathophysiology.firebasestorage.app",
-        messagingSenderId: "367793212618",
-        appId: "1:367793212618:web:c11acedc50ce6fc3897833"
-    },
+    FIREBASE: (window.ZODIAC_CONFIG || {}).FIREBASE || {},
     ZODIAC: [
         {label:'子鼠', icon:'⚡️', element:'water'}, {label:'丑牛', icon:'🧱', element:'earth'}, {label:'寅虎', icon:'🔥', element:'wood'}, {label:'卯兔', icon:'🧐', element:'wood'},
         {label:'辰龍', icon:'🌟', element:'earth'}, {label:'巳蛇', icon:'🧠', element:'fire'}, {label:'午馬', icon:'🚀', element:'fire'}, {label:'未羊', icon:'🤝', element:'earth'},

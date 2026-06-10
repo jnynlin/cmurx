@@ -42,6 +42,7 @@
         .btn-active-A { background: rgba(59, 130, 246, 0.15) !important; border-color: #3b82f6 !important; color: #60a5fa !important; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
         .btn-active-B { background: rgba(245, 158, 11, 0.15) !important; border-color: #f59e0b !important; color: #fbbf24 !important; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
     </style>
+    <script src="config.js"></script>
 </head>
 <body class="overflow-hidden text-base">
 <div id="app" v-cloak class="h-screen-dvh flex flex-col relative text-slate-100">
@@ -439,17 +440,9 @@ import { getDatabase, ref as dbRef, update, onValue, set, remove, get } from "ht
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const CONFIG = {
-    FIREBASE: {
-        apiKey: "AIzaSyBPdK2Ptbc9srt8DY74URKQyNmceexM-ro",
-        authDomain: "cmu-11402-pathophysiology.firebaseapp.com",
-        databaseURL: "https://cmu-11402-pathophysiology-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "cmu-11402-pathophysiology",
-        storageBucket: "cmu-11402-pathophysiology.firebasestorage.app",
-        messagingSenderId: "367793212618",
-        appId: "1:367793212618:web:c11acedc50ce6fc3897833"
-    },
-    GAS_URL: "https://script.google.com/macros/s/AKfycbzF6ntS5kGtvbvWeZLWkd_0qdjQnlSLJM0NiLifopAN64OyzSiqqL5ma3bul7quXZ1zGA/exec",
-    GAS_SECRET: "zodiac-2026-cmuh",
+    FIREBASE:   (window.ZODIAC_CONFIG || {}).FIREBASE   || {},
+    GAS_URL:    (window.ZODIAC_CONFIG || {}).GAS_URL    || '',
+    GAS_SECRET: (window.ZODIAC_CONFIG || {}).GAS_SECRET || '',
     ZODIAC: [
         {label:'子鼠', icon:'⚡️', element:'water'}, {label:'丑牛', icon:'🧱', element:'earth'}, {label:'寅虎', icon:'🔥', element:'wood'}, {label:'卯兔', icon:'🧐', element:'wood'},
         {label:'辰龍', icon:'🌟', element:'earth'}, {label:'巳蛇', icon:'🧠', element:'fire'}, {label:'午馬', icon:'🚀', element:'fire'}, {label:'未羊', icon:'🤝', element:'earth'},
