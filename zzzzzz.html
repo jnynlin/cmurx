@@ -727,18 +727,21 @@ function useRoster(sessionId, students, addToast) {
         if (t.gallery?.done)     score += c.BASE.GALLERY;
         
         if (t.notebook?.done) {
-            score += (t.notebook.duration < c.DURATION_BONUS.NOTEBOOK.THRESHOLD 
-                ? c.DURATION_BONUS.NOTEBOOK.PENALTY 
+            const d = t.notebook.duration || 0;
+            score += (d > 0 && d < c.DURATION_BONUS.NOTEBOOK.THRESHOLD
+                ? c.DURATION_BONUS.NOTEBOOK.PENALTY
                 : c.DURATION_BONUS.NOTEBOOK.SCORE);
         }
         if (t.slido?.done) {
-            score += (t.slido.duration < c.DURATION_BONUS.SLIDO.THRESHOLD 
-                ? c.DURATION_BONUS.SLIDO.PENALTY 
+            const d = t.slido.duration || 0;
+            score += (d > 0 && d < c.DURATION_BONUS.SLIDO.THRESHOLD
+                ? c.DURATION_BONUS.SLIDO.PENALTY
                 : c.DURATION_BONUS.SLIDO.SCORE);
         }
         if (t.forms?.done) {
-            score += (t.forms.duration < c.DURATION_BONUS.FORMS.THRESHOLD 
-                ? c.DURATION_BONUS.FORMS.PENALTY 
+            const d = t.forms.duration || 0;
+            score += (d > 0 && d < c.DURATION_BONUS.FORMS.THRESHOLD
+                ? c.DURATION_BONUS.FORMS.PENALTY
                 : c.DURATION_BONUS.FORMS.SCORE);
         }
         
@@ -752,9 +755,9 @@ function useRoster(sessionId, students, addToast) {
     const isSpeedrun = (student) => { 
         const t = student.tasks || {}; 
         const c = SCORE_CONFIG;
-        const isNotebookSpd = t.notebook?.done && (t.notebook.duration || 0) < c.DURATION_BONUS.NOTEBOOK.THRESHOLD;
-        const isSlidoSpd    = t.slido?.done && (t.slido.duration || 0) < c.DURATION_BONUS.SLIDO.THRESHOLD;
-        const isFormsSpd    = t.forms?.done && (t.forms.duration || 0) < c.DURATION_BONUS.FORMS.THRESHOLD;
+        const isNotebookSpd = t.notebook?.done && (t.notebook.duration || 0) > 0 && (t.notebook.duration || 0) < c.DURATION_BONUS.NOTEBOOK.THRESHOLD;
+        const isSlidoSpd    = t.slido?.done    && (t.slido.duration    || 0) > 0 && (t.slido.duration    || 0) < c.DURATION_BONUS.SLIDO.THRESHOLD;
+        const isFormsSpd    = t.forms?.done    && (t.forms.duration    || 0) > 0 && (t.forms.duration    || 0) < c.DURATION_BONUS.FORMS.THRESHOLD;
         return !!(isNotebookSpd || isSlidoSpd || isFormsSpd);
     };
 
