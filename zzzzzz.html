@@ -987,7 +987,7 @@ function useGAS(sessionId, students, addToast) {
             const resp = await fetch(CONFIG.GAS_URL, { method: 'POST', body: JSON.stringify({ sessionId: sessionId.value, timestamp: Date.now(), secret: CONFIG.GAS_SECRET, rows }) });
             if (!resp.ok) throw new Error(`GAS returned ${resp.status}`);
             addToast("存檔成功，資料已同步至試算表！", "success");
-        } catch (e) { addToast("存檔失敗，請檢查網路連線", "error"); } finally { isSyncing.value = false; }
+        } catch (e) { console.error('[GAS sync error]', e); addToast(`存檔失敗：${e.message || e}`, "error"); } finally { isSyncing.value = false; }
     };
     return { isSyncing, syncToSheets };
 }
